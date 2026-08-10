@@ -1,33 +1,56 @@
-import { View, Text, StyleSheet } from "react-native";
+import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
-export default function HomeScreen() {
+export default function TabsLayout() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.logo}>AINutriMind</Text>
-      <Text style={styles.tagline}>
-        Your AI Health & Nutrition Companion
-      </Text>
-    </View>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+
+        tabBarActiveTintColor: "#16A34A",
+        tabBarInactiveTintColor: "#94A3B8",
+
+        tabBarStyle: {
+          height: 68,
+          paddingTop: 8,
+          paddingBottom: 8,
+          backgroundColor: "#FFFFFF",
+          borderTopColor: "#E2E8F0",
+        },
+
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "600",
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Home",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons
+              name="home-outline"
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: "Explore",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons
+              name="compass-outline"
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+    </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  logo: {
-    fontSize: 34,
-    fontWeight: "700",
-    color: "#2E7D32",
-  },
-  tagline: {
-    marginTop: 15,
-    fontSize: 18,
-    color: "#64748B",
-    textAlign: "center",
-  },
-});

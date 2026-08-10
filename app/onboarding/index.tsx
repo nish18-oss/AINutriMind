@@ -1,5 +1,4 @@
 import { router } from "expo-router";
-import { useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -7,6 +6,8 @@ import {
   Text,
   View,
 } from "react-native";
+
+import { useOnboarding } from "@/lib/onboarding-context";
 
 const goals = [
   "Lose Weight",
@@ -16,8 +17,9 @@ const goals = [
 ];
 
 export default function GoalScreen() {
-  const [selectedGoal, setSelectedGoal] =
-    useState<string | null>(null);
+  const { data, updateData } = useOnboarding();
+
+  const selectedGoal = data.goal;
 
   return (
     <ScrollView
@@ -49,12 +51,17 @@ export default function GoalScreen() {
                 styles.option,
                 selected && styles.optionSelected,
               ]}
-              onPress={() => setSelectedGoal(goal)}
+              onPress={() => {
+                updateData({
+                  goal,
+                });
+              }}
             >
               <Text
                 style={[
                   styles.optionText,
-                  selected && styles.optionTextSelected,
+                  selected &&
+                    styles.optionTextSelected,
                 ]}
               >
                 {goal}

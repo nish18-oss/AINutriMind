@@ -1,5 +1,4 @@
 import { router } from "expo-router";
-import { useState } from "react";
 import {
   Keyboard,
   Pressable,
@@ -11,15 +10,15 @@ import {
   View,
 } from "react-native";
 
+import { useOnboarding } from "@/lib/onboarding-context";
+
 export default function RoutineScreen() {
-  const [wakeTime, setWakeTime] = useState("");
-  const [sleepTime, setSleepTime] = useState("");
-  const [schedule, setSchedule] = useState("");
+  const { data, updateData } = useOnboarding();
 
   const canContinue =
-    wakeTime.trim().length > 0 &&
-    sleepTime.trim().length > 0 &&
-    schedule.trim().length > 0;
+    data.wakeTime.trim().length > 0 &&
+    data.sleepTime.trim().length > 0 &&
+    data.schedule.trim().length > 0;
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -51,8 +50,12 @@ export default function RoutineScreen() {
             </Text>
 
             <TextInput
-              value={wakeTime}
-              onChangeText={setWakeTime}
+              value={data.wakeTime}
+              onChangeText={(value) =>
+                updateData({
+                  wakeTime: value,
+                })
+              }
               style={styles.input}
               placeholder="Example: 7:00 AM"
               placeholderTextColor="#94A3B8"
@@ -63,8 +66,12 @@ export default function RoutineScreen() {
             </Text>
 
             <TextInput
-              value={sleepTime}
-              onChangeText={setSleepTime}
+              value={data.sleepTime}
+              onChangeText={(value) =>
+                updateData({
+                  sleepTime: value,
+                })
+              }
               style={styles.input}
               placeholder="Example: 11:30 PM"
               placeholderTextColor="#94A3B8"
@@ -75,8 +82,12 @@ export default function RoutineScreen() {
             </Text>
 
             <TextInput
-              value={schedule}
-              onChangeText={setSchedule}
+              value={data.schedule}
+              onChangeText={(value) =>
+                updateData({
+                  schedule: value,
+                })
+              }
               style={[
                 styles.input,
                 styles.scheduleInput,

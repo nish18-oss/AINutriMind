@@ -1,5 +1,4 @@
 import { router } from "expo-router";
-import { useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -8,6 +7,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import { useOnboarding } from "@/lib/onboarding-context";
 
 const activityLevels = [
   "Low",
@@ -24,22 +25,14 @@ const dietOptions = [
 ];
 
 export default function ProfileScreen() {
-  const [age, setAge] = useState("");
-  const [height, setHeight] = useState("");
-  const [weight, setWeight] = useState("");
-
-  const [activity, setActivity] =
-    useState<string | null>(null);
-
-  const [diet, setDiet] =
-    useState<string | null>(null);
+  const { data, updateData } = useOnboarding();
 
   const canContinue =
-    age.trim().length > 0 &&
-    height.trim().length > 0 &&
-    weight.trim().length > 0 &&
-    activity !== null &&
-    diet !== null;
+    data.age.trim().length > 0 &&
+    data.height.trim().length > 0 &&
+    data.weight.trim().length > 0 &&
+    data.activityLevel !== null &&
+    data.dietPreference !== null;
 
   return (
     <ScrollView
@@ -48,9 +41,7 @@ export default function ProfileScreen() {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.eyebrow}>
-        STEP 3 OF 4
-      </Text>
+      <Text style={styles.eyebrow}>STEP 3 OF 4</Text>
 
       <Text style={styles.title}>
         Build your health profile
@@ -63,13 +54,15 @@ export default function ProfileScreen() {
 
       <View style={styles.row}>
         <View style={styles.halfField}>
-          <Text style={styles.label}>
-            Age
-          </Text>
+          <Text style={styles.label}>Age</Text>
 
           <TextInput
-            value={age}
-            onChangeText={setAge}
+            value={data.age}
+            onChangeText={(value) =>
+              updateData({
+                age: value,
+              })
+            }
             style={styles.input}
             placeholder="22"
             placeholderTextColor="#94A3B8"
@@ -83,8 +76,12 @@ export default function ProfileScreen() {
           </Text>
 
           <TextInput
-            value={height}
-            onChangeText={setHeight}
+            value={data.height}
+            onChangeText={(value) =>
+              updateData({
+                height: value,
+              })
+            }
             style={styles.input}
             placeholder="170"
             placeholderTextColor="#94A3B8"
@@ -98,8 +95,12 @@ export default function ProfileScreen() {
       </Text>
 
       <TextInput
-        value={weight}
-        onChangeText={setWeight}
+        value={data.weight}
+        onChangeText={(value) =>
+          updateData({
+            weight: value,
+          })
+        }
         style={styles.input}
         placeholder="70"
         placeholderTextColor="#94A3B8"
@@ -112,7 +113,8 @@ export default function ProfileScreen() {
 
       <View style={styles.optionGrid}>
         {activityLevels.map((item) => {
-          const selected = activity === item;
+          const selected =
+            data.activityLevel === item;
 
           return (
             <Pressable
@@ -121,7 +123,11 @@ export default function ProfileScreen() {
                 styles.option,
                 selected && styles.optionSelected,
               ]}
-              onPress={() => setActivity(item)}
+              onPress={() =>
+                updateData({
+                  activityLevel: item,
+                })
+              }
             >
               <Text
                 style={[
@@ -143,7 +149,8 @@ export default function ProfileScreen() {
 
       <View style={styles.optionGrid}>
         {dietOptions.map((item) => {
-          const selected = diet === item;
+          const selected =
+            data.dietPreference === item;
 
           return (
             <Pressable
@@ -152,7 +159,11 @@ export default function ProfileScreen() {
                 styles.option,
                 selected && styles.optionSelected,
               ]}
-              onPress={() => setDiet(item)}
+              onPress={() =>
+                updateData({
+                  dietPreference: item,
+                })
+              }
             >
               <Text
                 style={[

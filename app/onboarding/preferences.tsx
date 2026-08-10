@@ -1,5 +1,4 @@
 import { router } from "expo-router";
-import { useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -8,7 +7,9 @@ import {
   View,
 } from "react-native";
 
-const preferences = [
+import { useOnboarding } from "@/lib/onboarding-context";
+
+const preferenceOptions = [
   "Meal Planning",
   "Smart Reminders",
   "Workout Guidance",
@@ -18,19 +19,32 @@ const preferences = [
 ];
 
 export default function PreferencesScreen() {
-  const [selected, setSelected] =
-    useState<string[]>([]);
+  const { data, updateData } = useOnboarding();
 
   function togglePreference(item: string) {
-    setSelected((current) =>
-      current.includes(item)
-        ? current.filter(
-            (preference) =>
-              preference !== item
-          )
-        : [...current, item]
-    );
+    const alreadySelected =
+      data.preferences.includes(item);
+
+    if (alreadySelected) {
+      updateData({
+        preferences: data.preferences.filter(
+          (preference) => preference !== item
+        ),
+      });
+
+      return;
+    }
+
+    updateData({
+      preferences: [
+        ...data.preferences,
+        item,
+      ],
+    });
   }
+
+  const canFinish =
+    data.preferences.length > 0;
 
   return (
     <ScrollView
@@ -52,16 +66,16 @@ export default function PreferencesScreen() {
       </Text>
 
       <View style={styles.options}>
-        {preferences.map((item) => {
-          const isSelected =
-            selected.includes(item);
+        {preferenceOptions.map((item) => {
+          const selected =
+            data.preferences.includes(item);
 
           return (
             <Pressable
               key={item}
               style={[
                 styles.option,
-                isSelected &&
+                selected &&
                   styles.optionSelected,
               ]}
               onPress={() =>
@@ -71,7 +85,7 @@ export default function PreferencesScreen() {
               <Text
                 style={[
                   styles.optionText,
-                  isSelected &&
+                  selected &&
                     styles.optionTextSelected,
                 ]}
               >
@@ -83,14 +97,14 @@ export default function PreferencesScreen() {
       </View>
 
       <Pressable
-        disabled={selected.length === 0}
+        disabled={!canFinish}
         style={[
           styles.finishButton,
-          selected.length === 0 &&
+          !canFinish &&
             styles.finishButtonDisabled,
         ]}
         onPress={() => {
-          router.replace("/(tabs)");
+          router.push("/onboarding/summary");
         }}
       >
         <Text style={styles.finishText}>
