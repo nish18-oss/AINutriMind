@@ -8,6 +8,8 @@ import {
 } from "react";
 
 type OnboardingData = {
+  onboardingCompleted: boolean;
+
   goal: string | null;
 
   wakeTime: string;
@@ -39,6 +41,8 @@ type OnboardingContextType = {
 const STORAGE_KEY = "@ainutrimind_onboarding";
 
 const initialData: OnboardingData = {
+  onboardingCompleted: false,
+
   goal: null,
 
   wakeTime: "",
@@ -87,7 +91,7 @@ export function OnboardingProvider({
         await AsyncStorage.getItem(STORAGE_KEY);
 
       if (saved) {
-        const parsed: OnboardingData =
+        const parsed: Partial<OnboardingData> =
           JSON.parse(saved);
 
         setData({

@@ -28,7 +28,8 @@ export default function PreferencesScreen() {
     if (alreadySelected) {
       updateData({
         preferences: data.preferences.filter(
-          (preference) => preference !== item
+          (preference) =>
+            preference !== item
         ),
       });
 
@@ -45,6 +46,14 @@ export default function PreferencesScreen() {
 
   const canFinish =
     data.preferences.length > 0;
+
+  function completeOnboarding() {
+    updateData({
+      onboardingCompleted: true,
+    });
+
+    router.push("/onboarding/summary");
+  }
 
   return (
     <ScrollView
@@ -103,9 +112,7 @@ export default function PreferencesScreen() {
           !canFinish &&
             styles.finishButtonDisabled,
         ]}
-        onPress={() => {
-          router.push("/onboarding/summary");
-        }}
+        onPress={completeOnboarding}
       >
         <Text style={styles.finishText}>
           Build My Plan
