@@ -1,4 +1,5 @@
-import { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -9,10 +10,13 @@ import {
 } from "react-native";
 
 type PlanItem = {
-  id: number;
+  id: string;
   title: string;
   category: string;
+  completed: boolean;
 };
+
+const STORAGE_KEY = "@ainutrimind_planner_items";
 
 const categories = [
   "Meal",
@@ -25,6 +29,46 @@ export default function PlannerScreen() {
   const [task, setTask] = useState("");
   const [category, setCategory] = useState("Personal");
   const [items, setItems] = useState<PlanItem[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveTasks(items);
+    }
+  }, [items, isLoaded]);
+
+  async function loadTasks() {
+    try {
+      const savedTasks =
+        await AsyncStorage.getItem(STORAGE_KEY);
+
+      if (savedTasks) {
+        const parsedTasks: PlanItem[] =
+          JSON.parse(savedTasks);
+
+        setItems(parsedTasks);
+      }
+    } catch (error) {
+      console.log("Could not load planner tasks:", error);
+    } finally {
+      setIsLoaded(true);
+    }
+  }
+
+  async function saveTasks(tasks: PlanItem[]) {
+    try {
+      await AsyncStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(tasks)
+      );
+    } catch (error) {
+      console.log("Could not save planner tasks:", error);
+    }
+  }
 
   function addTask() {
     const cleanTask = task.trim();
@@ -33,17 +77,42 @@ export default function PlannerScreen() {
       return;
     }
 
+    const newTask: PlanItem = {
+      id: Date.now().toString(),
+      title: cleanTask,
+      category,
+      completed: false,
+    };
+
     setItems((current) => [
       ...current,
-      {
-        id: Date.now(),
-        title: cleanTask,
-        category,
-      },
+      newTask,
     ]);
 
     setTask("");
   }
+
+  function toggleTask(id: string) {
+    setItems((current) =>
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              completed: !item.completed,
+            }
+          : item
+      )
+    );
+  }
+
+  function deleteTask(id: string) {
+    setItems((current) =>
+      current.filter((item) => item.id !== id)
+    );
+  }
+
+  const completedCount =
+    items.filter((item) => item.completed).length;
 
   return (
     <ScrollView
@@ -61,7 +130,8 @@ export default function PlannerScreen() {
       </Text>
 
       <Text style={styles.subtitle}>
-        Organize meals, workouts, work and personal tasks in one place.
+        Organize meals, workouts, work and personal
+        tasks in one place.
       </Text>
 
       <View style={styles.addCard}>
@@ -75,6 +145,8 @@ export default function PlannerScreen() {
           onChangeText={setTask}
           placeholder="Example: Gym at 6 PM"
           placeholderTextColor="#94A3B8"
+          returnKeyType="done"
+          onSubmitEditing={addTask}
         />
 
         <Text style={styles.label}>
@@ -90,14 +162,16 @@ export default function PlannerScreen() {
                 key={item}
                 style={[
                   styles.category,
-                  selected && styles.categorySelected,
+                  selected &&
+                    styles.categorySelected,
                 ]}
                 onPress={() => setCategory(item)}
               >
                 <Text
                   style={[
                     styles.categoryText,
-                    selected && styles.categoryTextSelected,
+                    selected &&
+                      styles.categoryTextSelected,
                   ]}
                 >
                   {item}
@@ -110,7 +184,8 @@ export default function PlannerScreen() {
         <Pressable
           style={[
             styles.addButton,
-            !task.trim() && styles.addButtonDisabled,
+            !task.trim() &&
+              styles.addButtonDisabled,
           ]}
           disabled={!task.trim()}
           onPress={addTask}
@@ -122,16 +197,31 @@ export default function PlannerScreen() {
       </View>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
-          Today
-        </Text>
+        <View>
+          <Text style={styles.sectionTitle}>
+            Today
+          </Text>
+
+          {items.length > 0 && (
+            <Text style={styles.progressText}>
+              {completedCount} of {items.length} completed
+            </Text>
+          )}
+        </View>
 
         <Text style={styles.count}>
-          {items.length} {items.length === 1 ? "item" : "items"}
+          {items.length}{" "}
+          {items.length === 1 ? "item" : "items"}
         </Text>
       </View>
 
-      {items.length === 0 ? (
+      {!isLoaded ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>
+            Loading your planner...
+          </Text>
+        </View>
+      ) : items.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyIcon}>
             📋
@@ -142,8 +232,9 @@ export default function PlannerScreen() {
           </Text>
 
           <Text style={styles.emptyText}>
-            Add your first task above. Later, AINutriMind will also suggest
-            tasks automatically based on your goals and routine.
+            Add your first task above. Later,
+            AINutriMind will suggest tasks based on
+            your goals and routine.
           </Text>
         </View>
       ) : (
@@ -151,12 +242,35 @@ export default function PlannerScreen() {
           {items.map((item) => (
             <View
               key={item.id}
-              style={styles.taskCard}
+              style={[
+                styles.taskCard,
+                item.completed &&
+                  styles.taskCardCompleted,
+              ]}
             >
-              <View style={styles.taskIndicator} />
+              <Pressable
+                style={[
+                  styles.checkButton,
+                  item.completed &&
+                    styles.checkButtonCompleted,
+                ]}
+                onPress={() =>
+                  toggleTask(item.id)
+                }
+              >
+                <Text style={styles.checkText}>
+                  {item.completed ? "✓" : ""}
+                </Text>
+              </Pressable>
 
               <View style={styles.taskContent}>
-                <Text style={styles.taskTitle}>
+                <Text
+                  style={[
+                    styles.taskTitle,
+                    item.completed &&
+                      styles.taskTitleCompleted,
+                  ]}
+                >
                   {item.title}
                 </Text>
 
@@ -164,6 +278,17 @@ export default function PlannerScreen() {
                   {item.category}
                 </Text>
               </View>
+
+              <Pressable
+                style={styles.deleteButton}
+                onPress={() =>
+                  deleteTask(item.id)
+                }
+              >
+                <Text style={styles.deleteText}>
+                  Delete
+                </Text>
+              </Pressable>
             </View>
           ))}
         </View>
@@ -294,6 +419,13 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
+  progressText: {
+    marginTop: 4,
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
   count: {
     color: "#64748B",
     fontSize: 14,
@@ -339,15 +471,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
     borderRadius: 18,
-    padding: 16,
+    padding: 15,
   },
 
-  taskIndicator: {
-    width: 5,
-    height: 42,
+  taskCardCompleted: {
+    backgroundColor: "#F8FAFC",
+  },
+
+  checkButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "#CBD5E1",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 13,
+  },
+
+  checkButtonCompleted: {
     backgroundColor: "#22C55E",
-    borderRadius: 10,
-    marginRight: 14,
+    borderColor: "#22C55E",
+  },
+
+  checkText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "800",
   },
 
   taskContent: {
@@ -360,10 +510,26 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
+  taskTitleCompleted: {
+    color: "#94A3B8",
+    textDecorationLine: "line-through",
+  },
+
   taskCategory: {
     marginTop: 5,
     color: "#64748B",
     fontSize: 13,
     fontWeight: "600",
+  },
+
+  deleteButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+
+  deleteText: {
+    color: "#EF4444",
+    fontSize: 13,
+    fontWeight: "700",
   },
 });

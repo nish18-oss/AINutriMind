@@ -1,7 +1,9 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   createContext,
   ReactNode,
   useContext,
+  useEffect,
   useState,
 } from "react";
 
@@ -30,7 +32,11 @@ type OnboardingContextType = {
   ) => void;
 
   resetData: () => void;
+
+  isLoaded: boolean;
 };
+
+const STORAGE_KEY = "@ainutrimind_onboarding";
 
 const initialData: OnboardingData = {
   goal: null,
@@ -62,6 +68,59 @@ export function OnboardingProvider({
   const [data, setData] =
     useState<OnboardingData>(initialData);
 
+  const [isLoaded, setIsLoaded] =
+    useState(false);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveData(data);
+    }
+  }, [data, isLoaded]);
+
+  async function loadData() {
+    try {
+      const saved =
+        await AsyncStorage.getItem(STORAGE_KEY);
+
+      if (saved) {
+        const parsed: OnboardingData =
+          JSON.parse(saved);
+
+        setData({
+          ...initialData,
+          ...parsed,
+        });
+      }
+    } catch (error) {
+      console.log(
+        "Could not load onboarding data:",
+        error
+      );
+    } finally {
+      setIsLoaded(true);
+    }
+  }
+
+  async function saveData(
+    value: OnboardingData
+  ) {
+    try {
+      await AsyncStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(value)
+      );
+    } catch (error) {
+      console.log(
+        "Could not save onboarding data:",
+        error
+      );
+    }
+  }
+
   function updateData(
     values: Partial<OnboardingData>
   ) {
@@ -71,8 +130,19 @@ export function OnboardingProvider({
     }));
   }
 
-  function resetData() {
-    setData(initialData);
+  async function resetData() {
+    try {
+      await AsyncStorage.removeItem(
+        STORAGE_KEY
+      );
+
+      setData(initialData);
+    } catch (error) {
+      console.log(
+        "Could not reset onboarding data:",
+        error
+      );
+    }
   }
 
   return (
@@ -81,6 +151,7 @@ export function OnboardingProvider({
         data,
         updateData,
         resetData,
+        isLoaded,
       }}
     >
       {children}
@@ -89,7 +160,8 @@ export function OnboardingProvider({
 }
 
 export function useOnboarding() {
-  const context = useContext(OnboardingContext);
+  const context =
+    useContext(OnboardingContext);
 
   if (!context) {
     throw new Error(
