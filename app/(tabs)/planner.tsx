@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -9,6 +9,15 @@ import {
   View,
 } from "react-native";
 
+type DayKey =
+  | "Mon"
+  | "Tue"
+  | "Wed"
+  | "Thu"
+  | "Fri"
+  | "Sat"
+  | "Sun";
+
 type PlanItem = {
   id: string;
   title: string;
@@ -16,7 +25,19 @@ type PlanItem = {
   completed: boolean;
 };
 
-const STORAGE_KEY = "@ainutrimind_planner_items";
+type WeeklyPlan = Record<DayKey, PlanItem[]>;
+
+const STORAGE_KEY = "@ainutrimind_weekly_planner";
+
+const days: DayKey[] = [
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+  "Sun",
+];
 
 const categories = [
   "Meal",
@@ -25,48 +46,77 @@ const categories = [
   "Personal",
 ];
 
+const emptyPlan: WeeklyPlan = {
+  Mon: [],
+  Tue: [],
+  Wed: [],
+  Thu: [],
+  Fri: [],
+  Sat: [],
+  Sun: [],
+};
+
 export default function PlannerScreen() {
+  const [selectedDay, setSelectedDay] =
+    useState<DayKey>("Mon");
+
   const [task, setTask] = useState("");
-  const [category, setCategory] = useState("Personal");
-  const [items, setItems] = useState<PlanItem[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [category, setCategory] =
+    useState("Personal");
+
+  const [weeklyPlan, setWeeklyPlan] =
+    useState<WeeklyPlan>(emptyPlan);
+
+  const [isLoaded, setIsLoaded] =
+    useState(false);
 
   useEffect(() => {
-    loadTasks();
+    loadPlan();
   }, []);
 
   useEffect(() => {
     if (isLoaded) {
-      saveTasks(items);
+      savePlan(weeklyPlan);
     }
-  }, [items, isLoaded]);
+  }, [weeklyPlan, isLoaded]);
 
-  async function loadTasks() {
+  async function loadPlan() {
     try {
-      const savedTasks =
+      const saved =
         await AsyncStorage.getItem(STORAGE_KEY);
 
-      if (savedTasks) {
-        const parsedTasks: PlanItem[] =
-          JSON.parse(savedTasks);
+      if (saved) {
+        const parsed: WeeklyPlan =
+          JSON.parse(saved);
 
-        setItems(parsedTasks);
+        setWeeklyPlan({
+          ...emptyPlan,
+          ...parsed,
+        });
       }
     } catch (error) {
-      console.log("Could not load planner tasks:", error);
+      console.log(
+        "Could not load weekly planner:",
+        error
+      );
     } finally {
       setIsLoaded(true);
     }
   }
 
-  async function saveTasks(tasks: PlanItem[]) {
+  async function savePlan(
+    plan: WeeklyPlan
+  ) {
     try {
       await AsyncStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify(tasks)
+        JSON.stringify(plan)
       );
     } catch (error) {
-      console.log("Could not save planner tasks:", error);
+      console.log(
+        "Could not save weekly planner:",
+        error
+      );
     }
   }
 
@@ -77,64 +127,174 @@ export default function PlannerScreen() {
       return;
     }
 
-    const newTask: PlanItem = {
+    const newItem: PlanItem = {
       id: Date.now().toString(),
       title: cleanTask,
       category,
       completed: false,
     };
 
-    setItems((current) => [
+    setWeeklyPlan((current) => ({
       ...current,
-      newTask,
-    ]);
+      [selectedDay]: [
+        ...current[selectedDay],
+        newItem,
+      ],
+    }));
 
     setTask("");
   }
 
   function toggleTask(id: string) {
-    setItems((current) =>
-      current.map((item) =>
+    setWeeklyPlan((current) => ({
+      ...current,
+      [selectedDay]: current[
+        selectedDay
+      ].map((item) =>
         item.id === id
           ? {
               ...item,
-              completed: !item.completed,
+              completed:
+                !item.completed,
             }
           : item
-      )
-    );
+      ),
+    }));
   }
 
   function deleteTask(id: string) {
-    setItems((current) =>
-      current.filter((item) => item.id !== id)
-    );
+    setWeeklyPlan((current) => ({
+      ...current,
+      [selectedDay]: current[
+        selectedDay
+      ].filter(
+        (item) => item.id !== id
+      ),
+    }));
   }
 
+  const selectedItems =
+    weeklyPlan[selectedDay];
+
   const completedCount =
-    items.filter((item) => item.completed).length;
+    selectedItems.filter(
+      (item) => item.completed
+    ).length;
+
+  const weeklyTaskCount = useMemo(
+    () =>
+      days.reduce(
+        (total, day) =>
+          total +
+          weeklyPlan[day].length,
+        0
+      ),
+    [weeklyPlan]
+  );
 
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.container}
+      contentContainerStyle={
+        styles.container
+      }
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
       <Text style={styles.eyebrow}>
-        DAILY PLANNER
+        WEEKLY PLANNER
       </Text>
 
       <Text style={styles.title}>
-        Plan your day
+        Plan your week
       </Text>
 
       <Text style={styles.subtitle}>
-        Organize meals, workouts, work and personal
-        tasks in one place.
+        Organize meals, workouts,
+        work and personal tasks across
+        your entire week.
       </Text>
 
+      <View style={styles.weekSummary}>
+        <Text style={styles.weekSummaryTitle}>
+          This week
+        </Text>
+
+        <Text style={styles.weekSummaryValue}>
+          {weeklyTaskCount}{" "}
+          {weeklyTaskCount === 1
+            ? "planned item"
+            : "planned items"}
+        </Text>
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={
+          false
+        }
+        contentContainerStyle={
+          styles.dayRow
+        }
+      >
+        {days.map((day) => {
+          const selected =
+            selectedDay === day;
+
+          const count =
+            weeklyPlan[day].length;
+
+          return (
+            <Pressable
+              key={day}
+              style={[
+                styles.dayButton,
+                selected &&
+                  styles.dayButtonSelected,
+              ]}
+              onPress={() =>
+                setSelectedDay(day)
+              }
+            >
+              <Text
+                style={[
+                  styles.dayText,
+                  selected &&
+                    styles.dayTextSelected,
+                ]}
+              >
+                {day}
+              </Text>
+
+              {count > 0 && (
+                <View
+                  style={[
+                    styles.dayCount,
+                    selected &&
+                      styles.dayCountSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dayCountText,
+                      selected &&
+                        styles.dayCountTextSelected,
+                    ]}
+                  >
+                    {count}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
       <View style={styles.addCard}>
+        <Text style={styles.selectedDayTitle}>
+          Add to {selectedDay}
+        </Text>
+
         <Text style={styles.label}>
           What do you need to do?
         </Text>
@@ -155,7 +315,8 @@ export default function PlannerScreen() {
 
         <View style={styles.categories}>
           {categories.map((item) => {
-            const selected = category === item;
+            const selected =
+              category === item;
 
             return (
               <Pressable
@@ -165,7 +326,9 @@ export default function PlannerScreen() {
                   selected &&
                     styles.categorySelected,
                 ]}
-                onPress={() => setCategory(item)}
+                onPress={() =>
+                  setCategory(item)
+                }
               >
                 <Text
                   style={[
@@ -191,7 +354,7 @@ export default function PlannerScreen() {
           onPress={addTask}
         >
           <Text style={styles.addButtonText}>
-            + Add to Today
+            + Add to {selectedDay}
           </Text>
         </Pressable>
       </View>
@@ -199,47 +362,52 @@ export default function PlannerScreen() {
       <View style={styles.sectionHeader}>
         <View>
           <Text style={styles.sectionTitle}>
-            Today
+            {selectedDay}
           </Text>
 
-          {items.length > 0 && (
+          {selectedItems.length > 0 && (
             <Text style={styles.progressText}>
-              {completedCount} of {items.length} completed
+              {completedCount} of{" "}
+              {selectedItems.length} completed
             </Text>
           )}
         </View>
 
         <Text style={styles.count}>
-          {items.length}{" "}
-          {items.length === 1 ? "item" : "items"}
+          {selectedItems.length}{" "}
+          {selectedItems.length === 1
+            ? "item"
+            : "items"}
         </Text>
       </View>
 
       {!isLoaded ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>
-            Loading your planner...
+            Loading your week...
           </Text>
         </View>
-      ) : items.length === 0 ? (
+      ) : selectedItems.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyIcon}>
-            📋
+            📅
           </Text>
 
           <Text style={styles.emptyTitle}>
-            Your day is clear
+            Nothing planned for{" "}
+            {selectedDay}
           </Text>
 
           <Text style={styles.emptyText}>
-            Add your first task above. Later,
-            AINutriMind will suggest tasks based on
-            your goals and routine.
+            Add tasks above. Later,
+            AINutriMind will generate
+            suggestions based on your
+            routine and goals.
           </Text>
         </View>
       ) : (
         <View style={styles.taskList}>
-          {items.map((item) => (
+          {selectedItems.map((item) => (
             <View
               key={item.id}
               style={[
@@ -259,11 +427,15 @@ export default function PlannerScreen() {
                 }
               >
                 <Text style={styles.checkText}>
-                  {item.completed ? "✓" : ""}
+                  {item.completed
+                    ? "✓"
+                    : ""}
                 </Text>
               </Pressable>
 
-              <View style={styles.taskContent}>
+              <View
+                style={styles.taskContent}
+              >
                 <Text
                   style={[
                     styles.taskTitle,
@@ -274,7 +446,9 @@ export default function PlannerScreen() {
                   {item.title}
                 </Text>
 
-                <Text style={styles.taskCategory}>
+                <Text
+                  style={styles.taskCategory}
+                >
                   {item.category}
                 </Text>
               </View>
@@ -285,7 +459,9 @@ export default function PlannerScreen() {
                   deleteTask(item.id)
                 }
               >
-                <Text style={styles.deleteText}>
+                <Text
+                  style={styles.deleteText}
+                >
                   Delete
                 </Text>
               </Pressable>
@@ -330,13 +506,94 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
 
+  weekSummary: {
+    marginTop: 24,
+    backgroundColor: "#0F172A",
+    borderRadius: 20,
+    padding: 18,
+  },
+
+  weekSummaryTitle: {
+    color: "#86EFAC",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  weekSummaryValue: {
+    marginTop: 7,
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "800",
+  },
+
+  dayRow: {
+    gap: 10,
+    paddingVertical: 24,
+  },
+
+  dayButton: {
+    minWidth: 62,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E2E8F0",
+    borderWidth: 1.5,
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    alignItems: "center",
+  },
+
+  dayButtonSelected: {
+    backgroundColor: "#16A34A",
+    borderColor: "#16A34A",
+  },
+
+  dayText: {
+    color: "#475569",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  dayTextSelected: {
+    color: "#FFFFFF",
+  },
+
+  dayCount: {
+    marginTop: 7,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  dayCountSelected: {
+    backgroundColor: "#FFFFFF",
+  },
+
+  dayCountText: {
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+
+  dayCountTextSelected: {
+    color: "#15803D",
+  },
+
   addCard: {
-    marginTop: 28,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
     borderRadius: 22,
     padding: 18,
+  },
+
+  selectedDayTitle: {
+    color: "#0F172A",
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 20,
   },
 
   label: {
@@ -450,6 +707,7 @@ const styles = StyleSheet.create({
     color: "#0F172A",
     fontSize: 18,
     fontWeight: "800",
+    textAlign: "center",
   },
 
   emptyText: {
@@ -512,7 +770,8 @@ const styles = StyleSheet.create({
 
   taskTitleCompleted: {
     color: "#94A3B8",
-    textDecorationLine: "line-through",
+    textDecorationLine:
+      "line-through",
   },
 
   taskCategory: {
