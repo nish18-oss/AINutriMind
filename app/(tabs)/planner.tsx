@@ -1,15 +1,24 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
-  TextInput,
   View,
 } from "react-native";
+
+import AddTaskCard, {
+  PlannerCategory,
+} from "@/components/planner/AddTaskCard";
+
+import PlannerTimeline, {
+  PlannerTimelineItem,
+} from "@/components/planner/PlannerTimeline";
+
+import { AppTheme } from "@/constants/theme";
 
 import {
   cancelPlannerReminder,
@@ -21,7 +30,7 @@ import {
 type PlanItem = {
   id: string;
   title: string;
-  category: string;
+  category: PlannerCategory;
   time: string;
   reminderEnabled: boolean;
   notificationId: string | null;
@@ -30,7 +39,8 @@ type PlanItem = {
 
 type WeeklyPlan = Record<PlannerDayKey, PlanItem[]>;
 
-const STORAGE_KEY = "@ainutrimind_weekly_planner";
+const STORAGE_KEY =
+  "@ainutrimind_weekly_planner";
 
 const days: PlannerDayKey[] = [
   "Mon",
@@ -40,13 +50,6 @@ const days: PlannerDayKey[] = [
   "Fri",
   "Sat",
   "Sun",
-];
-
-const categories = [
-  "Meal",
-  "Workout",
-  "Work / College",
-  "Personal",
 ];
 
 const emptyPlan: WeeklyPlan = {
@@ -59,18 +62,39 @@ const emptyPlan: WeeklyPlan = {
   Sun: [],
 };
 
+function getTodayPlannerDay(): PlannerDayKey {
+  const day = new Date().getDay();
+
+  const map: PlannerDayKey[] = [
+    "Sun",
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
+  ];
+
+  return map[day];
+}
+
 export default function PlannerScreen() {
   const [selectedDay, setSelectedDay] =
-    useState<PlannerDayKey>("Mon");
+    useState<PlannerDayKey>(
+      getTodayPlannerDay()
+    );
 
   const [task, setTask] = useState("");
+
   const [time, setTime] = useState("");
 
   const [category, setCategory] =
-    useState("Personal");
+    useState<PlannerCategory>("Personal");
 
-  const [reminderEnabled, setReminderEnabled] =
-    useState(false);
+  const [
+    reminderEnabled,
+    setReminderEnabled,
+  ] = useState(false);
 
   const [weeklyPlan, setWeeklyPlan] =
     useState<WeeklyPlan>(emptyPlan);
@@ -80,6 +104,11 @@ export default function PlannerScreen() {
 
   const [isAdding, setIsAdding] =
     useState(false);
+
+  const [
+    showAddTask,
+    setShowAddTask,
+  ] = useState(false);
 
   useEffect(() => {
     loadPlan();
@@ -94,26 +123,30 @@ export default function PlannerScreen() {
   async function loadPlan() {
     try {
       const saved =
-        await AsyncStorage.getItem(STORAGE_KEY);
+        await AsyncStorage.getItem(
+          STORAGE_KEY
+        );
 
-      if (saved) {
-        const parsed = JSON.parse(saved);
-
-        const normalizedPlan: WeeklyPlan = {
-          Mon: normalizeItems(parsed.Mon),
-          Tue: normalizeItems(parsed.Tue),
-          Wed: normalizeItems(parsed.Wed),
-          Thu: normalizeItems(parsed.Thu),
-          Fri: normalizeItems(parsed.Fri),
-          Sat: normalizeItems(parsed.Sat),
-          Sun: normalizeItems(parsed.Sun),
-        };
-
-        setWeeklyPlan(normalizedPlan);
+      if (!saved) {
+        return;
       }
+
+      const parsed = JSON.parse(saved);
+
+      const normalizedPlan: WeeklyPlan = {
+        Mon: normalizeItems(parsed.Mon),
+        Tue: normalizeItems(parsed.Tue),
+        Wed: normalizeItems(parsed.Wed),
+        Thu: normalizeItems(parsed.Thu),
+        Fri: normalizeItems(parsed.Fri),
+        Sat: normalizeItems(parsed.Sat),
+        Sun: normalizeItems(parsed.Sun),
+      };
+
+      setWeeklyPlan(normalizedPlan);
     } catch (error) {
       console.log(
-        "Could not load weekly planner:",
+        "Could not load planner:",
         error
       );
     } finally {
@@ -129,18 +162,46 @@ export default function PlannerScreen() {
     }
 
     return items.map((item) => ({
-      ...item,
+      id:
+        typeof item.id === "string"
+          ? item.id
+          : Date.now().toString(),
+
+      title:
+        typeof item.title === "string"
+          ? item.title
+          : "",
+
+      category:
+        isPlannerCategory(item.category)
+          ? item.category
+          : "Personal",
+
       time:
         typeof item.time === "string"
           ? item.time
           : "",
+
       reminderEnabled:
         item.reminderEnabled ?? false,
+
       notificationId:
         item.notificationId ?? null,
+
       completed:
         item.completed ?? false,
     }));
+  }
+
+  function isPlannerCategory(
+    value: unknown
+  ): value is PlannerCategory {
+    return (
+      value === "Meal" ||
+      value === "Workout" ||
+      value === "Work / College" ||
+      value === "Personal"
+    );
   }
 
   async function savePlan(
@@ -153,7 +214,7 @@ export default function PlannerScreen() {
       );
     } catch (error) {
       console.log(
-        "Could not save weekly planner:",
+        "Could not save planner:",
         error
       );
     }
@@ -167,51 +228,52 @@ export default function PlannerScreen() {
       return;
     }
 
+    if (!cleanTime) {
+      Alert.alert(
+        "Time required",
+        "Choose a time for this item."
+      );
+
+      return;
+    }
+
     if (
-      cleanTime.length > 0 &&
       !isValidPlannerTime(cleanTime)
     ) {
       Alert.alert(
         "Invalid time",
         "Enter time like 6:00 PM or 18:00."
       );
-      return;
-    }
 
-    if (
-      reminderEnabled &&
-      !cleanTime
-    ) {
-      Alert.alert(
-        "Time required",
-        "Add a time before enabling a reminder."
-      );
       return;
     }
 
     setIsAdding(true);
 
     try {
-      let notificationId: string | null =
-        null;
+      let notificationId:
+        | string
+        | null = null;
 
       let finalReminderEnabled =
         reminderEnabled;
 
       if (reminderEnabled) {
         notificationId =
-          await scheduleWeeklyPlannerReminder({
-            day: selectedDay,
-            time: cleanTime,
-            taskTitle: cleanTask,
-          });
+          await scheduleWeeklyPlannerReminder(
+            {
+              day: selectedDay,
+              time: cleanTime,
+              taskTitle: cleanTask,
+            }
+          );
 
         if (!notificationId) {
           finalReminderEnabled = false;
 
           Alert.alert(
             "Reminder not enabled",
-            "The task was added, but notification permission was not available."
+            "The item was added, but notification permission was not available."
           );
         }
       }
@@ -221,71 +283,131 @@ export default function PlannerScreen() {
         title: cleanTask,
         category,
         time: cleanTime,
+
         reminderEnabled:
           finalReminderEnabled,
+
         notificationId,
         completed: false,
       };
 
       setWeeklyPlan((current) => ({
         ...current,
+
         [selectedDay]: [
           ...current[selectedDay],
           newItem,
         ],
       }));
 
-      setTask("");
-      setTime("");
-      setCategory("Personal");
-      setReminderEnabled(false);
+      clearComposer();
+
+      setShowAddTask(false);
     } catch (error) {
       console.log(
-        "Could not add planner task:",
+        "Could not add planner item:",
         error
       );
 
       Alert.alert(
         "Something went wrong",
-        "AINutriMind could not create the reminder."
+        "AINutriMind could not add this item."
       );
     } finally {
       setIsAdding(false);
     }
   }
 
+  function clearComposer() {
+    setTask("");
+    setTime("");
+    setCategory("Personal");
+    setReminderEnabled(false);
+  }
+
+  function closeComposer() {
+    clearComposer();
+    setShowAddTask(false);
+  }
+
   function toggleTask(id: string) {
     setWeeklyPlan((current) => ({
       ...current,
+
       [selectedDay]:
-        current[selectedDay].map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                completed: !item.completed,
-              }
-            : item
+        current[selectedDay].map(
+          (item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  completed:
+                    !item.completed,
+                }
+              : item
         ),
     }));
+  }
+
+  function requestDelete(
+    timelineItem: PlannerTimelineItem
+  ) {
+    const item =
+      weeklyPlan[selectedDay].find(
+        (currentItem) =>
+          currentItem.id ===
+          timelineItem.id
+      );
+
+    if (!item) {
+      return;
+    }
+
+    Alert.alert(
+      "Remove from your flow?",
+      item.title,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+
+        {
+          text: "Remove",
+          style: "destructive",
+
+          onPress: () => {
+            deleteTask(item);
+          },
+        },
+      ]
+    );
   }
 
   async function deleteTask(
     item: PlanItem
   ) {
-    if (item.notificationId) {
-      await cancelPlannerReminder(
-        item.notificationId
+    try {
+      if (item.notificationId) {
+        await cancelPlannerReminder(
+          item.notificationId
+        );
+      }
+
+      setWeeklyPlan((current) => ({
+        ...current,
+
+        [selectedDay]:
+          current[selectedDay].filter(
+            (currentItem) =>
+              currentItem.id !== item.id
+          ),
+      }));
+    } catch (error) {
+      console.log(
+        "Could not delete planner item:",
+        error
       );
     }
-
-    setWeeklyPlan((current) => ({
-      ...current,
-      [selectedDay]:
-        current[selectedDay].filter(
-          (currentItem) =>
-            currentItem.id !== item.id
-        ),
-    }));
   }
 
   const selectedItems =
@@ -296,28 +418,28 @@ export default function PlannerScreen() {
       (item) => item.completed
     ).length;
 
-  const weeklyTaskCount =
-    useMemo(
-      () =>
-        days.reduce(
-          (total, day) =>
-            total +
-            weeklyPlan[day].length,
-          0
-        ),
-      [weeklyPlan]
-    );
+  const weeklyTaskCount = useMemo(
+    () =>
+      days.reduce(
+        (total, day) =>
+          total +
+          weeklyPlan[day].length,
+        0
+      ),
+    [weeklyPlan]
+  );
 
-  const timeValid =
-    !time.trim() ||
-    isValidPlannerTime(time);
+  const completionPercent =
+    selectedItems.length === 0
+      ? 0
+      : Math.round(
+          (completedCount /
+            selectedItems.length) *
+            100
+        );
 
-  const canAdd =
-    task.trim().length > 0 &&
-    timeValid &&
-    (!reminderEnabled ||
-      time.trim().length > 0) &&
-    !isAdding;
+  const todayDay =
+    getTodayPlannerDay();
 
   return (
     <ScrollView
@@ -328,46 +450,82 @@ export default function PlannerScreen() {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.eyebrow}>
-        WEEKLY PLANNER
-      </Text>
+      {/* Header */}
 
-      <Text style={styles.title}>
-        Plan your week
-      </Text>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.eyebrow}>
+            YOUR FLOW
+          </Text>
 
-      <Text style={styles.subtitle}>
-        Organize meals, workouts, work
-        and personal tasks across your week.
-      </Text>
+          <Text style={styles.title}>
+            Planner
+          </Text>
+        </View>
 
-      <View style={styles.weekSummary}>
-        <Text
-          style={styles.weekSummaryTitle}
+        <Pressable
+          style={styles.addCircle}
+          onPress={() =>
+            setShowAddTask(
+              (current) => !current
+            )
+          }
         >
-          This week
-        </Text>
-
-        <Text
-          style={styles.weekSummaryValue}
-        >
-          {weeklyTaskCount}{" "}
-          {weeklyTaskCount === 1
-            ? "planned item"
-            : "planned items"}
-        </Text>
+          <Ionicons
+            name={
+              showAddTask
+                ? "close"
+                : "add"
+            }
+            size={24}
+            color="#FFFFFF"
+          />
+        </Pressable>
       </View>
+
+      <View style={styles.summaryRow}>
+        <View>
+          <Text style={styles.summaryMain}>
+            {weeklyTaskCount}
+          </Text>
+
+          <Text style={styles.summaryLabel}>
+            moments this week
+          </Text>
+        </View>
+
+        <View style={styles.summaryDivider} />
+
+        <View>
+          <Text style={styles.summaryMain}>
+            {completedCount}
+          </Text>
+
+          <Text style={styles.summaryLabel}>
+            completed today
+          </Text>
+        </View>
+      </View>
+
+      {/* Day selector */}
 
       <ScrollView
         horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.dayRow}
+        showsHorizontalScrollIndicator={
+          false
+        }
+        contentContainerStyle={
+          styles.dayRow
+        }
       >
         {days.map((day) => {
           const selected =
             selectedDay === day;
 
-          const count =
+          const isToday =
+            todayDay === day;
+
+          const itemCount =
             weeklyPlan[day].length;
 
           return (
@@ -375,316 +533,147 @@ export default function PlannerScreen() {
               key={day}
               style={[
                 styles.dayButton,
+
                 selected &&
                   styles.dayButtonSelected,
               ]}
-              onPress={() =>
-                setSelectedDay(day)
-              }
+              onPress={() => {
+                setSelectedDay(day);
+                setShowAddTask(false);
+                clearComposer();
+              }}
             >
               <Text
                 style={[
                   styles.dayText,
+
                   selected &&
                     styles.dayTextSelected,
                 ]}
               >
-                {day}
+                {day.charAt(0)}
               </Text>
 
-              {count > 0 && (
+              {isToday && (
                 <View
                   style={[
-                    styles.dayCount,
+                    styles.todayDot,
+
                     selected &&
-                      styles.dayCountSelected,
+                      styles.todayDotSelected,
                   ]}
-                >
+                />
+              )}
+
+              {!isToday &&
+                itemCount > 0 && (
                   <Text
                     style={[
-                      styles.dayCountText,
+                      styles.dayCount,
+
                       selected &&
-                        styles.dayCountTextSelected,
+                        styles.dayCountSelected,
                     ]}
                   >
-                    {count}
+                    {itemCount}
                   </Text>
-                </View>
-              )}
+                )}
             </Pressable>
           );
         })}
       </ScrollView>
 
-      <View style={styles.addCard}>
-        <Text
-          style={styles.selectedDayTitle}
-        >
-          Add to {selectedDay}
-        </Text>
+      {/* Add task */}
 
-        <Text style={styles.label}>
-          What do you need to do?
-        </Text>
-
-        <TextInput
-          style={styles.input}
-          value={task}
-          onChangeText={setTask}
-          placeholder="Example: Gym"
-          placeholderTextColor="#94A3B8"
+      {showAddTask && (
+        <AddTaskCard
+          dayLabel={selectedDay}
+          title={task}
+          onTitleChange={setTask}
+          time={time}
+          onTimeChange={setTime}
+          category={category}
+          onCategoryChange={
+            setCategory
+          }
+          reminderEnabled={
+            reminderEnabled
+          }
+          onReminderChange={
+            setReminderEnabled
+          }
+          onAdd={addTask}
+          onClose={closeComposer}
         />
+      )}
 
-        <Text style={styles.label}>
-          Time
-        </Text>
+      {/* Current day */}
 
-        <TextInput
-          style={[
-            styles.input,
-            !timeValid &&
-              styles.inputError,
-          ]}
-          value={time}
-          onChangeText={setTime}
-          placeholder="Example: 6:00 PM"
-          placeholderTextColor="#94A3B8"
-          autoCapitalize="characters"
-        />
-
-        {!timeValid && (
-          <Text style={styles.errorText}>
-            Use a time like 6:00 PM or 18:00.
+      <View style={styles.sectionHeader}>
+        <View>
+          <Text style={styles.sectionEyebrow}>
+            {selectedDay === todayDay
+              ? "TODAY"
+              : selectedDay.toUpperCase()}
           </Text>
-        )}
 
-        <Text style={styles.label}>
-          Category
-        </Text>
-
-        <View style={styles.categories}>
-          {categories.map((item) => {
-            const selected =
-              category === item;
-
-            return (
-              <Pressable
-                key={item}
-                style={[
-                  styles.category,
-                  selected &&
-                    styles.categorySelected,
-                ]}
-                onPress={() =>
-                  setCategory(item)
-                }
-              >
-                <Text
-                  style={[
-                    styles.categoryText,
-                    selected &&
-                      styles.categoryTextSelected,
-                  ]}
-                >
-                  {item}
-                </Text>
-              </Pressable>
-            );
-          })}
+          <Text style={styles.sectionTitle}>
+            Daily flow
+          </Text>
         </View>
 
-        <View style={styles.reminderRow}>
-          <View
-            style={styles.reminderContent}
-          >
-            <Text
-              style={styles.reminderTitle}
-            >
-              Weekly reminder
-            </Text>
-
-            <Text
-              style={styles.reminderText}
-            >
-              Notify me every {selectedDay}
-              {" "}at this time.
+        {selectedItems.length > 0 && (
+          <View style={styles.percentBadge}>
+            <Text style={styles.percentText}>
+              {completionPercent}%
             </Text>
           </View>
-
-          <Switch
-            value={reminderEnabled}
-            onValueChange={
-              setReminderEnabled
-            }
-            disabled={
-              !time.trim() ||
-              !timeValid
-            }
-          />
-        </View>
-
-        <Pressable
-          style={[
-            styles.addButton,
-            !canAdd &&
-              styles.addButtonDisabled,
-          ]}
-          disabled={!canAdd}
-          onPress={addTask}
-        >
-          <Text
-            style={styles.addButtonText}
-          >
-            {isAdding
-              ? "Adding..."
-              : `+ Add to ${selectedDay}`}
-          </Text>
-        </Pressable>
-      </View>
-
-      <View
-        style={styles.sectionHeader}
-      >
-        <View>
-          <Text
-            style={styles.sectionTitle}
-          >
-            {selectedDay}
-          </Text>
-
-          {selectedItems.length > 0 && (
-            <Text
-              style={styles.progressText}
-            >
-              {completedCount} of{" "}
-              {selectedItems.length} completed
-            </Text>
-          )}
-        </View>
-
-        <Text style={styles.count}>
-          {selectedItems.length}{" "}
-          {selectedItems.length === 1
-            ? "item"
-            : "items"}
-        </Text>
+        )}
       </View>
 
       {!isLoaded ? (
-        <View style={styles.emptyCard}>
-          <Text
-            style={styles.emptyTitle}
-          >
-            Loading your week...
-          </Text>
-        </View>
-      ) : selectedItems.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text
-            style={styles.emptyIcon}
-          >
-            📅
-          </Text>
-
-          <Text
-            style={styles.emptyTitle}
-          >
-            Nothing planned for{" "}
-            {selectedDay}
-          </Text>
-
-          <Text
-            style={styles.emptyText}
-          >
-            Add your first item for this day.
+        <View style={styles.loading}>
+          <Text style={styles.loadingText}>
+            Loading your flow...
           </Text>
         </View>
       ) : (
-        <View style={styles.taskList}>
-          {selectedItems.map(
-            (item) => (
-              <View
-                key={item.id}
-                style={[
-                  styles.taskCard,
-                  item.completed &&
-                    styles.taskCardCompleted,
-                ]}
-              >
-                <Pressable
-                  style={[
-                    styles.checkButton,
-                    item.completed &&
-                      styles.checkButtonCompleted,
-                  ]}
-                  onPress={() =>
-                    toggleTask(item.id)
-                  }
-                >
-                  <Text
-                    style={styles.checkText}
-                  >
-                    {item.completed
-                      ? "✓"
-                      : ""}
-                  </Text>
-                </Pressable>
+        <PlannerTimeline
+          items={selectedItems}
+          onToggle={toggleTask}
+          onDelete={requestDelete}
+        />
+      )}
 
-                <View
-                  style={styles.taskContent}
-                >
-                  <Text
-                    style={[
-                      styles.taskTitle,
-                      item.completed &&
-                        styles.taskTitleCompleted,
-                    ]}
-                  >
-                    {item.title}
-                  </Text>
+      {/* Intelligence */}
 
-                  <View
-                    style={styles.metaRow}
-                  >
-                    <Text
-                      style={styles.taskCategory}
-                    >
-                      {item.category}
-                    </Text>
+      {selectedItems.length > 0 && (
+        <View style={styles.insightCard}>
+          <View style={styles.insightHeader}>
+            <View style={styles.sparkleCircle}>
+              <Ionicons
+                name="sparkles-outline"
+                size={18}
+                color="#A7F3D0"
+              />
+            </View>
 
-                    {item.time && (
-                      <Text
-                        style={styles.taskTime}
-                      >
-                        {item.time}
-                      </Text>
-                    )}
-                  </View>
+            <Text style={styles.insightLabel}>
+              FLOW INSIGHT
+            </Text>
+          </View>
 
-                  {item.reminderEnabled && (
-                    <Text
-                      style={styles.reminderBadge}
-                    >
-                      🔔 Weekly reminder active
-                    </Text>
-                  )}
-                </View>
+          <Text style={styles.insightTitle}>
+            Your day has structure
+          </Text>
 
-                <Pressable
-                  style={styles.deleteButton}
-                  onPress={() =>
-                    deleteTask(item)
-                  }
-                >
-                  <Text
-                    style={styles.deleteText}
-                  >
-                    Delete
-                  </Text>
-                </Pressable>
-              </View>
-            )
-          )}
+          <Text style={styles.insightText}>
+            AINutriMind will eventually
+            connect this schedule with your
+            nutrition, activity and reminders
+            so guidance appears when it is
+            actually useful.
+          </Text>
         </View>
       )}
     </ScrollView>
@@ -694,79 +683,109 @@ export default function PlannerScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor:
+      AppTheme.colors.background,
   },
 
   container: {
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 56,
     paddingBottom: 120,
   },
 
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
   eyebrow: {
-    color: "#16A34A",
-    fontSize: 13,
+    color:
+      AppTheme.colors.accentDark,
+    fontSize: 10,
     fontWeight: "800",
-    letterSpacing: 1,
+    letterSpacing: 1.3,
   },
 
   title: {
-    marginTop: 8,
-    color: "#0F172A",
-    fontSize: 34,
+    marginTop: 4,
+    color: AppTheme.colors.ink,
+    fontSize: 32,
     fontWeight: "800",
   },
 
-  subtitle: {
-    marginTop: 10,
-    color: "#64748B",
-    fontSize: 16,
-    lineHeight: 24,
+  addCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor:
+      AppTheme.colors.ink,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  weekSummary: {
+  summaryRow: {
     marginTop: 24,
-    backgroundColor: "#0F172A",
+    paddingVertical: 16,
+    paddingHorizontal: 18,
     borderRadius: 20,
-    padding: 18,
+    backgroundColor:
+      AppTheme.colors.surfaceSoft,
+    flexDirection: "row",
+    alignItems: "center",
   },
 
-  weekSummaryTitle: {
-    color: "#86EFAC",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-
-  weekSummaryValue: {
-    marginTop: 7,
-    color: "#FFFFFF",
+  summaryMain: {
+    color: AppTheme.colors.ink,
     fontSize: 20,
     fontWeight: "800",
   },
 
+  summaryLabel: {
+    marginTop: 2,
+    color:
+      AppTheme.colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+
+  summaryDivider: {
+    width: 1,
+    height: 34,
+    marginHorizontal: 22,
+    backgroundColor:
+      AppTheme.colors.border,
+  },
+
   dayRow: {
-    gap: 10,
-    paddingVertical: 24,
+    gap: 9,
+    paddingTop: 22,
+    paddingBottom: 8,
   },
 
   dayButton: {
-    minWidth: 62,
-    backgroundColor: "#FFFFFF",
-    borderColor: "#E2E8F0",
-    borderWidth: 1.5,
+    width: 44,
+    height: 58,
     borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor:
+      AppTheme.colors.border,
+    backgroundColor:
+      AppTheme.colors.surface,
+    justifyContent: "center",
     alignItems: "center",
   },
 
   dayButtonSelected: {
-    backgroundColor: "#16A34A",
-    borderColor: "#16A34A",
+    borderColor:
+      AppTheme.colors.ink,
+    backgroundColor:
+      AppTheme.colors.ink,
   },
 
   dayText: {
-    color: "#475569",
+    color:
+      AppTheme.colors.textSecondary,
     fontSize: 14,
     fontWeight: "800",
   },
@@ -775,294 +794,123 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 
+  todayDot: {
+    width: 5,
+    height: 5,
+    marginTop: 5,
+    borderRadius: 3,
+    backgroundColor:
+      AppTheme.colors.accent,
+  },
+
+  todayDotSelected: {
+    backgroundColor: "#A7F3D0",
+  },
+
   dayCount: {
-    marginTop: 7,
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#F1F5F9",
-    justifyContent: "center",
-    alignItems: "center",
+    marginTop: 3,
+    color:
+      AppTheme.colors.textMuted,
+    fontSize: 9,
+    fontWeight: "800",
   },
 
   dayCountSelected: {
-    backgroundColor: "#FFFFFF",
+    color: "#CBD5E1",
   },
 
-  dayCountText: {
-    color: "#64748B",
+  sectionHeader: {
+    marginTop: 28,
+    marginBottom: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+  },
+
+  sectionEyebrow: {
+    color:
+      AppTheme.colors.accentDark,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+  },
+
+  sectionTitle: {
+    marginTop: 4,
+    color: AppTheme.colors.ink,
+    fontSize: 22,
+    fontWeight: "800",
+  },
+
+  percentBadge: {
+    paddingVertical: 7,
+    paddingHorizontal: 11,
+    borderRadius: 999,
+    backgroundColor:
+      AppTheme.colors.accentSoft,
+  },
+
+  percentText: {
+    color:
+      AppTheme.colors.accentDark,
     fontSize: 11,
     fontWeight: "800",
   },
 
-  dayCountTextSelected: {
-    color: "#15803D",
-  },
-
-  addCard: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 22,
-    padding: 18,
-  },
-
-  selectedDayTitle: {
-    color: "#0F172A",
-    fontSize: 20,
-    fontWeight: "800",
-    marginBottom: 20,
-  },
-
-  label: {
-    color: "#334155",
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 9,
-  },
-
-  input: {
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1.5,
-    borderColor: "#CBD5E1",
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    color: "#0F172A",
-    fontSize: 16,
-    marginBottom: 20,
-  },
-
-  inputError: {
-    borderColor: "#EF4444",
-    marginBottom: 7,
-  },
-
-  errorText: {
-    color: "#EF4444",
-    fontSize: 12,
-    marginBottom: 18,
-  },
-
-  categories: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 9,
-  },
-
-  category: {
-    borderWidth: 1.5,
-    borderColor: "#CBD5E1",
-    borderRadius: 14,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-  },
-
-  categorySelected: {
-    backgroundColor: "#F0FDF4",
-    borderColor: "#22C55E",
-  },
-
-  categoryText: {
-    color: "#475569",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-
-  categoryTextSelected: {
-    color: "#15803D",
-  },
-
-  reminderRow: {
-    marginTop: 22,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 16,
-    padding: 15,
-  },
-
-  reminderContent: {
-    flex: 1,
-    paddingRight: 16,
-  },
-
-  reminderTitle: {
-    color: "#0F172A",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-
-  reminderText: {
-    marginTop: 4,
-    color: "#64748B",
-    fontSize: 13,
-  },
-
-  addButton: {
+  loading: {
     marginTop: 20,
-    backgroundColor: "#22C55E",
-    borderRadius: 16,
-    paddingVertical: 15,
+    padding: 30,
     alignItems: "center",
   },
 
-  addButtonDisabled: {
-    opacity: 0.35,
-  },
-
-  addButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  sectionHeader: {
-    marginTop: 30,
-    marginBottom: 14,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  sectionTitle: {
-    color: "#0F172A",
-    fontSize: 21,
-    fontWeight: "800",
-  },
-
-  progressText: {
-    marginTop: 4,
-    color: "#64748B",
+  loadingText: {
+    color:
+      AppTheme.colors.textSecondary,
     fontSize: 13,
-    fontWeight: "600",
   },
 
-  count: {
-    color: "#64748B",
-    fontSize: 14,
-    fontWeight: "600",
+  insightCard: {
+    marginTop: 20,
+    padding: 20,
+    borderRadius: 24,
+    backgroundColor:
+      AppTheme.colors.darkSurface,
   },
 
-  emptyCard: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 22,
-    padding: 28,
-    alignItems: "center",
-  },
-
-  emptyIcon: {
-    fontSize: 34,
-  },
-
-  emptyTitle: {
-    marginTop: 12,
-    color: "#0F172A",
-    fontSize: 18,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-
-  emptyText: {
-    marginTop: 8,
-    color: "#64748B",
-    fontSize: 14,
-    lineHeight: 21,
-    textAlign: "center",
-  },
-
-  taskList: {
-    gap: 12,
-  },
-
-  taskCard: {
+  insightHeader: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 18,
-    padding: 15,
   },
 
-  taskCardCompleted: {
-    backgroundColor: "#F8FAFC",
-  },
-
-  checkButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: "#CBD5E1",
+  sparkleCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor:
+      AppTheme.colors.darkSurfaceSoft,
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-    marginRight: 13,
   },
 
-  checkButtonCompleted: {
-    backgroundColor: "#22C55E",
-    borderColor: "#22C55E",
+  insightLabel: {
+    marginLeft: 10,
+    color: "#A7F3D0",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.2,
   },
 
-  checkText: {
+  insightTitle: {
+    marginTop: 16,
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 19,
     fontWeight: "800",
   },
 
-  taskContent: {
-    flex: 1,
-  },
-
-  taskTitle: {
-    color: "#0F172A",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  taskTitleCompleted: {
-    color: "#94A3B8",
-    textDecorationLine: "line-through",
-  },
-
-  metaRow: {
-    marginTop: 6,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-
-  taskCategory: {
-    color: "#64748B",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-
-  taskTime: {
-    color: "#16A34A",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
-  reminderBadge: {
+  insightText: {
     marginTop: 7,
-    color: "#15803D",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-  deleteButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-  },
-
-  deleteText: {
-    color: "#EF4444",
+    color: "#CBD5E1",
     fontSize: 13,
-    fontWeight: "700",
+    lineHeight: 20,
   },
 });

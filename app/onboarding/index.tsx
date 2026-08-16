@@ -10,10 +10,26 @@ import {
 import { useOnboarding } from "@/lib/onboarding-context";
 
 const goals = [
-  "Lose Weight",
-  "Build Muscle",
-  "Maintain Weight",
-  "Improve Nutrition",
+  {
+    title: "Lose Weight",
+    description: "Build a sustainable calorie deficit and healthier routine.",
+    icon: "⚖️",
+  },
+  {
+    title: "Build Muscle",
+    description: "Support strength training with nutrition and recovery.",
+    icon: "💪",
+  },
+  {
+    title: "Maintain Weight",
+    description: "Stay consistent with balanced nutrition and activity.",
+    icon: "🎯",
+  },
+  {
+    title: "Improve Nutrition",
+    description: "Eat better, build healthier habits and improve food quality.",
+    icon: "🥗",
+  },
 ];
 
 export default function GoalScreen() {
@@ -27,45 +43,86 @@ export default function GoalScreen() {
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.eyebrow}>
-        STEP 1 OF 4
-      </Text>
+      <View style={styles.progressHeader}>
+        <Text style={styles.stepText}>
+          STEP 1 OF 4
+        </Text>
+
+        <Text style={styles.progressNumber}>
+          25%
+        </Text>
+      </View>
+
+      <View style={styles.progressTrack}>
+        <View style={styles.progressFill} />
+      </View>
 
       <Text style={styles.title}>
         What is your main goal?
       </Text>
 
       <Text style={styles.subtitle}>
-        AINutriMind will personalize your nutrition,
-        routine and recommendations around your goal.
+        Choose the goal AINutriMind should prioritize when building your plan.
       </Text>
 
       <View style={styles.options}>
         {goals.map((goal) => {
-          const selected = selectedGoal === goal;
+          const selected =
+            selectedGoal === goal.title;
 
           return (
             <Pressable
-              key={goal}
+              key={goal.title}
               style={[
                 styles.option,
-                selected && styles.optionSelected,
+                selected &&
+                  styles.optionSelected,
               ]}
               onPress={() => {
                 updateData({
-                  goal,
+                  goal: goal.title,
                 });
               }}
             >
-              <Text
+              <View
                 style={[
-                  styles.optionText,
+                  styles.iconBox,
                   selected &&
-                    styles.optionTextSelected,
+                    styles.iconBoxSelected,
                 ]}
               >
-                {goal}
-              </Text>
+                <Text style={styles.icon}>
+                  {goal.icon}
+                </Text>
+              </View>
+
+              <View style={styles.optionContent}>
+                <Text
+                  style={[
+                    styles.optionTitle,
+                    selected &&
+                      styles.optionTitleSelected,
+                  ]}
+                >
+                  {goal.title}
+                </Text>
+
+                <Text style={styles.optionDescription}>
+                  {goal.description}
+                </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.radio,
+                  selected &&
+                    styles.radioSelected,
+                ]}
+              >
+                {selected && (
+                  <View style={styles.radioDot} />
+                )}
+              </View>
             </Pressable>
           );
         })}
@@ -85,6 +142,10 @@ export default function GoalScreen() {
         <Text style={styles.continueText}>
           Continue
         </Text>
+
+        <Text style={styles.arrow}>
+          →
+        </Text>
       </Pressable>
     </ScrollView>
   );
@@ -98,19 +159,47 @@ const styles = StyleSheet.create({
 
   container: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 50,
+    paddingHorizontal: 22,
+    paddingTop: 54,
+    paddingBottom: 80,
   },
 
-  eyebrow: {
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  stepText: {
     color: "#16A34A",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
-    marginBottom: 12,
+    letterSpacing: 0.8,
+  },
+
+  progressNumber: {
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  progressTrack: {
+    height: 6,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 999,
+    marginTop: 12,
+    overflow: "hidden",
+  },
+
+  progressFill: {
+    width: "25%",
+    height: "100%",
+    backgroundColor: "#22C55E",
+    borderRadius: 999,
   },
 
   title: {
+    marginTop: 32,
     color: "#0F172A",
     fontSize: 34,
     fontWeight: "800",
@@ -120,44 +209,98 @@ const styles = StyleSheet.create({
   subtitle: {
     marginTop: 14,
     color: "#64748B",
-    fontSize: 17,
-    lineHeight: 26,
+    fontSize: 16,
+    lineHeight: 25,
   },
 
   options: {
-    marginTop: 32,
+    marginTop: 30,
     gap: 14,
   },
 
   option: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#FFFFFF",
     borderWidth: 1.5,
     borderColor: "#E2E8F0",
-    borderRadius: 18,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    borderRadius: 20,
+    padding: 16,
   },
 
   optionSelected: {
     borderColor: "#22C55E",
-    backgroundColor: "#F0FDF4",
+    backgroundColor: "#F7FDF9",
   },
 
-  optionText: {
-    color: "#334155",
+  iconBox: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  iconBoxSelected: {
+    backgroundColor: "#DCFCE7",
+  },
+
+  icon: {
+    fontSize: 24,
+  },
+
+  optionContent: {
+    flex: 1,
+    marginLeft: 14,
+    marginRight: 10,
+  },
+
+  optionTitle: {
+    color: "#0F172A",
     fontSize: 17,
-    fontWeight: "600",
+    fontWeight: "800",
   },
 
-  optionTextSelected: {
+  optionTitleSelected: {
     color: "#15803D",
+  },
+
+  optionDescription: {
+    marginTop: 5,
+    color: "#64748B",
+    fontSize: 13,
+    lineHeight: 19,
+  },
+
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: "#CBD5E1",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  radioSelected: {
+    borderColor: "#22C55E",
+  },
+
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#22C55E",
   },
 
   continueButton: {
     marginTop: 32,
-    backgroundColor: "#22C55E",
-    paddingVertical: 17,
+    minHeight: 58,
+    backgroundColor: "#16A34A",
     borderRadius: 18,
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
   },
 
@@ -167,7 +310,14 @@ const styles = StyleSheet.create({
 
   continueText: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 17,
+    fontWeight: "800",
+  },
+
+  arrow: {
+    marginLeft: 10,
+    color: "#FFFFFF",
+    fontSize: 22,
     fontWeight: "700",
   },
 });

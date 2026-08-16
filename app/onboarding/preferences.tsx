@@ -9,51 +9,33 @@ import {
 
 import { useOnboarding } from "@/lib/onboarding-context";
 
-const preferenceOptions = [
-  "Meal Planning",
-  "Smart Reminders",
-  "Workout Guidance",
-  "Daily Routine",
-  "Healthy Habits",
-  "AI Coaching",
+const goals = [
+  {
+    title: "Lose Weight",
+    description: "Build a sustainable calorie deficit and healthier routine.",
+    icon: "⚖️",
+  },
+  {
+    title: "Build Muscle",
+    description: "Support strength training with nutrition and recovery.",
+    icon: "💪",
+  },
+  {
+    title: "Maintain Weight",
+    description: "Stay consistent with balanced nutrition and activity.",
+    icon: "🎯",
+  },
+  {
+    title: "Improve Nutrition",
+    description: "Eat better, build healthier habits and improve food quality.",
+    icon: "🥗",
+  },
 ];
 
-export default function PreferencesScreen() {
+export default function GoalScreen() {
   const { data, updateData } = useOnboarding();
 
-  function togglePreference(item: string) {
-    const alreadySelected =
-      data.preferences.includes(item);
-
-    if (alreadySelected) {
-      updateData({
-        preferences: data.preferences.filter(
-          (preference) =>
-            preference !== item
-        ),
-      });
-
-      return;
-    }
-
-    updateData({
-      preferences: [
-        ...data.preferences,
-        item,
-      ],
-    });
-  }
-
-  const canFinish =
-    data.preferences.length > 0;
-
-  function completeOnboarding() {
-    updateData({
-      onboardingCompleted: true,
-    });
-
-    router.push("/onboarding/summary");
-  }
+  const selectedGoal = data.goal;
 
   return (
     <ScrollView
@@ -61,61 +43,108 @@ export default function PreferencesScreen() {
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.eyebrow}>
-        STEP 4 OF 4
-      </Text>
+      <View style={styles.progressHeader}>
+        <Text style={styles.stepText}>
+          STEP 1 OF 4
+        </Text>
+
+        <Text style={styles.progressNumber}>
+          25%
+        </Text>
+      </View>
+
+      <View style={styles.progressTrack}>
+        <View style={styles.progressFill} />
+      </View>
 
       <Text style={styles.title}>
-        How should AINutriMind help you?
+        What is your main goal?
       </Text>
 
       <Text style={styles.subtitle}>
-        Choose everything you want your AI companion
-        to help you manage.
+        Choose the goal AINutriMind should prioritize when building your plan.
       </Text>
 
       <View style={styles.options}>
-        {preferenceOptions.map((item) => {
+        {goals.map((goal) => {
           const selected =
-            data.preferences.includes(item);
+            selectedGoal === goal.title;
 
           return (
             <Pressable
-              key={item}
+              key={goal.title}
               style={[
                 styles.option,
                 selected &&
                   styles.optionSelected,
               ]}
-              onPress={() =>
-                togglePreference(item)
-              }
+              onPress={() => {
+                updateData({
+                  goal: goal.title,
+                });
+              }}
             >
-              <Text
+              <View
                 style={[
-                  styles.optionText,
+                  styles.iconBox,
                   selected &&
-                    styles.optionTextSelected,
+                    styles.iconBoxSelected,
                 ]}
               >
-                {item}
-              </Text>
+                <Text style={styles.icon}>
+                  {goal.icon}
+                </Text>
+              </View>
+
+              <View style={styles.optionContent}>
+                <Text
+                  style={[
+                    styles.optionTitle,
+                    selected &&
+                      styles.optionTitleSelected,
+                  ]}
+                >
+                  {goal.title}
+                </Text>
+
+                <Text style={styles.optionDescription}>
+                  {goal.description}
+                </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.radio,
+                  selected &&
+                    styles.radioSelected,
+                ]}
+              >
+                {selected && (
+                  <View style={styles.radioDot} />
+                )}
+              </View>
             </Pressable>
           );
         })}
       </View>
 
       <Pressable
-        disabled={!canFinish}
+        disabled={!selectedGoal}
         style={[
-          styles.finishButton,
-          !canFinish &&
-            styles.finishButtonDisabled,
+          styles.continueButton,
+          !selectedGoal &&
+            styles.continueButtonDisabled,
         ]}
-        onPress={completeOnboarding}
+        onPress={() =>
+          router.push("/onboarding/routine")
+        }
       >
-        <Text style={styles.finishText}>
-          Build My Plan
+        <Text style={styles.continueText}>
+          Continue
+        </Text>
+
+        <Text style={styles.arrow}>
+          →
         </Text>
       </Pressable>
     </ScrollView>
@@ -130,19 +159,47 @@ const styles = StyleSheet.create({
 
   container: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingHorizontal: 22,
+    paddingTop: 54,
     paddingBottom: 80,
   },
 
-  eyebrow: {
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  stepText: {
     color: "#16A34A",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
-    marginBottom: 12,
+    letterSpacing: 0.8,
+  },
+
+  progressNumber: {
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  progressTrack: {
+    height: 6,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 999,
+    marginTop: 12,
+    overflow: "hidden",
+  },
+
+  progressFill: {
+    width: "25%",
+    height: "100%",
+    backgroundColor: "#22C55E",
+    borderRadius: 999,
   },
 
   title: {
+    marginTop: 32,
     color: "#0F172A",
     fontSize: 34,
     fontWeight: "800",
@@ -152,54 +209,115 @@ const styles = StyleSheet.create({
   subtitle: {
     marginTop: 14,
     color: "#64748B",
-    fontSize: 17,
-    lineHeight: 26,
+    fontSize: 16,
+    lineHeight: 25,
   },
 
   options: {
-    marginTop: 32,
-    gap: 12,
+    marginTop: 30,
+    gap: 14,
   },
 
   option: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderColor: "#CBD5E1",
     borderWidth: 1.5,
-    borderRadius: 18,
-    paddingHorizontal: 20,
-    paddingVertical: 17,
+    borderColor: "#E2E8F0",
+    borderRadius: 20,
+    padding: 16,
   },
 
   optionSelected: {
-    backgroundColor: "#F0FDF4",
     borderColor: "#22C55E",
+    backgroundColor: "#F7FDF9",
   },
 
-  optionText: {
-    color: "#334155",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-
-  optionTextSelected: {
-    color: "#15803D",
-  },
-
-  finishButton: {
-    marginTop: 32,
-    backgroundColor: "#22C55E",
-    borderRadius: 18,
-    paddingVertical: 17,
+  iconBox: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
     alignItems: "center",
   },
 
-  finishButtonDisabled: {
+  iconBoxSelected: {
+    backgroundColor: "#DCFCE7",
+  },
+
+  icon: {
+    fontSize: 24,
+  },
+
+  optionContent: {
+    flex: 1,
+    marginLeft: 14,
+    marginRight: 10,
+  },
+
+  optionTitle: {
+    color: "#0F172A",
+    fontSize: 17,
+    fontWeight: "800",
+  },
+
+  optionTitleSelected: {
+    color: "#15803D",
+  },
+
+  optionDescription: {
+    marginTop: 5,
+    color: "#64748B",
+    fontSize: 13,
+    lineHeight: 19,
+  },
+
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: "#CBD5E1",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  radioSelected: {
+    borderColor: "#22C55E",
+  },
+
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#22C55E",
+  },
+
+  continueButton: {
+    marginTop: 32,
+    minHeight: 58,
+    backgroundColor: "#16A34A",
+    borderRadius: 18,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  continueButtonDisabled: {
     opacity: 0.35,
   },
 
-  finishText: {
+  continueText: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 17,
+    fontWeight: "800",
+  },
+
+  arrow: {
+    marginLeft: 10,
+    color: "#FFFFFF",
+    fontSize: 22,
     fontWeight: "700",
   },
 });

@@ -1,3 +1,5 @@
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import {
   Pressable,
   ScrollView,
@@ -6,10 +8,26 @@ import {
   View,
 } from "react-native";
 
+import { AppTheme } from "@/constants/theme";
 import { useOnboarding } from "@/lib/onboarding-context";
 
-export default function DashboardScreen() {
+export default function HomeScreen() {
   const { data } = useOnboarding();
+
+  const proteinTarget =
+    data.goal === "Build Muscle" ? 130 : 100;
+
+  const proteinConsumed = 88;
+
+  const proteinRemaining = Math.max(
+    proteinTarget - proteinConsumed,
+    0
+  );
+
+  const proteinProgress = Math.min(
+    (proteinConsumed / proteinTarget) * 100,
+    100
+  );
 
   return (
     <ScrollView
@@ -20,140 +38,210 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>
-            Welcome to AINutriMind
+            Good afternoon
           </Text>
 
-          <Text style={styles.goal}>
-            Goal: {data.goal ?? "Personal wellness"}
+          <Text style={styles.name}>
+            Nishant
           </Text>
         </View>
 
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>AI</Text>
+        <Pressable
+          style={styles.profileButton}
+          onPress={() =>
+            router.push("/profile" as any)
+          }
+        >
+          <Ionicons
+            name="person-outline"
+            size={21}
+            color={AppTheme.colors.ink}
+          />
+        </Pressable>
+      </View>
+
+      <Text style={styles.date}>
+        SUNDAY · AUGUST 16
+      </Text>
+
+      <View style={styles.balanceSection}>
+        <View style={styles.balanceRing}>
+          <Text style={styles.balanceNumber}>
+            72
+          </Text>
+
+          <Text style={styles.balanceLabel}>
+            DAY BALANCE
+          </Text>
+
+          <Text style={styles.balanceStatus}>
+            On track
+          </Text>
+        </View>
+
+        <View style={styles.signals}>
+          <Text style={styles.signalActive}>
+            ● Nutrition
+          </Text>
+
+          <Text style={styles.signalActive}>
+            ● Routine
+          </Text>
+
+          <Text style={styles.signalMuted}>
+            ○ Activity
+          </Text>
         </View>
       </View>
 
-      <View style={styles.heroCard}>
-        <Text style={styles.heroEyebrow}>
-          YOUR AI PLAN
+      <View style={styles.nowCard}>
+        <View style={styles.nowHeader}>
+          <Text style={styles.nowLabel}>
+            ● NOW
+          </Text>
+
+          <Ionicons
+            name="sparkles-outline"
+            size={20}
+            color="#A7F3D0"
+          />
+        </View>
+
+        <Text style={styles.nowTitle}>
+          Protein needs attention
         </Text>
 
-        <Text style={styles.heroTitle}>
-          Today is built around your routine
+        <Text style={styles.nowBody}>
+          You are slightly behind today&apos;s pace.
+          Closing the gap now can make your evening easier.
         </Text>
 
-        <Text style={styles.heroText}>
-          Wake at {data.wakeTime || "your usual time"},
-          sleep at {data.sleepTime || "your usual time"}.
-          AINutriMind will use this schedule to organize
-          nutrition, reminders and daily health tasks.
-        </Text>
+        <View style={styles.proteinRow}>
+          <View>
+            <Text style={styles.proteinMain}>
+              {proteinConsumed}g
+            </Text>
 
-        <Pressable style={styles.heroButton}>
-          <Text style={styles.heroButtonText}>
-            View Today&apos;s Plan
+            <Text style={styles.proteinCaption}>
+              consumed
+            </Text>
+          </View>
+
+          <View style={styles.targetBox}>
+            <Text style={styles.proteinTarget}>
+              {proteinTarget}g
+            </Text>
+
+            <Text style={styles.proteinCaption}>
+              target
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.progressTrack}>
+          <View
+            style={[
+              styles.progressFill,
+              {
+                width: `${proteinProgress}%`,
+              },
+            ]}
+          />
+        </View>
+
+        <View style={styles.progressInfo}>
+          <Text style={styles.remaining}>
+            {proteinRemaining}g remaining today
+          </Text>
+
+          <Text style={styles.goalAware}>
+            GOAL-AWARE
+          </Text>
+        </View>
+
+        <Pressable
+          style={styles.primaryButton}
+          onPress={() =>
+            router.push("/coach" as any)
+          }
+        >
+          <Text style={styles.primaryButtonText}>
+            Fix my next meal
+          </Text>
+
+          <Ionicons
+            name="arrow-forward"
+            size={18}
+            color="#FFFFFF"
+          />
+        </Pressable>
+      </View>
+
+      <View style={styles.quickRow}>
+        <Pressable style={styles.quickButton}>
+          <Ionicons
+            name="restaurant-outline"
+            size={21}
+            color={AppTheme.colors.accentDark}
+          />
+
+          <Text style={styles.quickText}>
+            Nutrition
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.quickButton}
+          onPress={() =>
+            router.push("/planner" as any)
+          }
+        >
+          <Ionicons
+            name="calendar-outline"
+            size={21}
+            color={AppTheme.colors.accentDark}
+          />
+
+          <Text style={styles.quickText}>
+            Planner
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.quickButton}
+          onPress={() =>
+            router.push("/coach" as any)
+          }
+        >
+          <Ionicons
+            name="sparkles-outline"
+            size={21}
+            color={AppTheme.colors.accentDark}
+          />
+
+          <Text style={styles.quickText}>
+            Ask AI
           </Text>
         </Pressable>
       </View>
 
-      <Text style={styles.sectionTitle}>
-        Today&apos;s Focus
-      </Text>
-
-      <View style={styles.focusGrid}>
-        <View style={styles.focusCard}>
-          <Text style={styles.focusIcon}>🍽️</Text>
-          <Text style={styles.focusTitle}>
-            Nutrition
-          </Text>
-          <Text style={styles.focusText}>
-            {data.dietPreference ?? "Personalized"} meals
-          </Text>
+      <View style={styles.tonightCard}>
+        <View style={styles.moonCircle}>
+          <Ionicons
+            name="moon-outline"
+            size={20}
+            color={AppTheme.colors.accentDark}
+          />
         </View>
 
-        <View style={styles.focusCard}>
-          <Text style={styles.focusIcon}>🏃</Text>
-          <Text style={styles.focusTitle}>
-            Activity
-          </Text>
-          <Text style={styles.focusText}>
-            {data.activityLevel ?? "Balanced"} activity
-          </Text>
-        </View>
-
-        <View style={styles.focusCard}>
-          <Text style={styles.focusIcon}>⏰</Text>
-          <Text style={styles.focusTitle}>
-            Routine
-          </Text>
-          <Text style={styles.focusText}>
-            {data.wakeTime || "Set schedule"}
-          </Text>
-        </View>
-
-        <View style={styles.focusCard}>
-          <Text style={styles.focusIcon}>🤖</Text>
-          <Text style={styles.focusTitle}>
-            AI Coach
-          </Text>
-          <Text style={styles.focusText}>
-            Personalized guidance
-          </Text>
-        </View>
-      </View>
-
-      <Text style={styles.sectionTitle}>
-        Your Profile
-      </Text>
-
-      <View style={styles.profileCard}>
-        <ProfileRow
-          label="Age"
-          value={data.age || "—"}
-        />
-
-        <ProfileRow
-          label="Height"
-          value={
-            data.height
-              ? `${data.height} cm`
-              : "—"
-          }
-        />
-
-        <ProfileRow
-          label="Weight"
-          value={
-            data.weight
-              ? `${data.weight} kg`
-              : "—"
-          }
-        />
-
-        <ProfileRow
-          label="Diet"
-          value={data.dietPreference ?? "—"}
-        />
-      </View>
-
-      <Text style={styles.sectionTitle}>
-        AI Assistance
-      </Text>
-
-      <View style={styles.aiCard}>
-        <View style={styles.aiBadge}>
-          <Text style={styles.aiBadgeText}>AI</Text>
-        </View>
-
-        <View style={styles.aiContent}>
-          <Text style={styles.aiTitle}>
-            Your health companion is ready
+        <View style={styles.tonightContent}>
+          <Text style={styles.tonightTitle}>
+            Tonight
           </Text>
 
-          <Text style={styles.aiText}>
-            Soon, this section will turn your routine,
-            goals and preferences into an adaptive daily
-            plan.
+          <Text style={styles.tonightText}>
+            Your end-of-day check-in will appear before
+            your usual sleep time.
           </Text>
         </View>
       </View>
@@ -161,36 +249,16 @@ export default function DashboardScreen() {
   );
 }
 
-function ProfileRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={styles.profileRow}>
-      <Text style={styles.profileLabel}>
-        {label}
-      </Text>
-
-      <Text style={styles.profileValue}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: AppTheme.colors.background,
   },
 
   container: {
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 120,
+    paddingTop: 54,
+    paddingBottom: 110,
   },
 
   header: {
@@ -200,182 +268,263 @@ const styles = StyleSheet.create({
   },
 
   greeting: {
-    fontSize: 26,
+    color: AppTheme.colors.textSecondary,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  name: {
+    marginTop: 2,
+    color: AppTheme.colors.ink,
+    fontSize: 28,
     fontWeight: "800",
-    color: "#0F172A",
   },
 
-  goal: {
-    marginTop: 6,
-    fontSize: 15,
-    color: "#64748B",
-  },
-
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#DCFCE7",
+  profileButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: AppTheme.colors.border,
+    backgroundColor: AppTheme.colors.surface,
     justifyContent: "center",
     alignItems: "center",
   },
 
-  avatarText: {
-    color: "#15803D",
-    fontSize: 15,
+  date: {
+    marginTop: 22,
+    color: AppTheme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+  },
+
+  balanceSection: {
+    marginTop: 28,
+    alignItems: "center",
+  },
+
+  balanceRing: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 13,
+    borderColor: AppTheme.colors.accentSoft,
+    backgroundColor: AppTheme.colors.surface,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  balanceNumber: {
+    color: AppTheme.colors.ink,
+    fontSize: 44,
     fontWeight: "800",
   },
 
-  heroCard: {
-    marginTop: 28,
-    backgroundColor: "#0F172A",
-    borderRadius: 24,
-    padding: 22,
-  },
-
-  heroEyebrow: {
-    color: "#86EFAC",
-    fontSize: 12,
+  balanceLabel: {
+    color: AppTheme.colors.textSecondary,
+    fontSize: 10,
     fontWeight: "800",
     letterSpacing: 1,
   },
 
-  heroTitle: {
-    marginTop: 10,
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "800",
-    lineHeight: 31,
+  balanceStatus: {
+    marginTop: 4,
+    color: AppTheme.colors.accentDark,
+    fontSize: 11,
+    fontWeight: "700",
   },
 
-  heroText: {
-    marginTop: 12,
-    color: "#CBD5E1",
-    fontSize: 15,
-    lineHeight: 23,
+  signals: {
+    marginTop: 16,
+    flexDirection: "row",
+    gap: 16,
   },
 
-  heroButton: {
-    marginTop: 20,
-    backgroundColor: "#22C55E",
-    borderRadius: 16,
-    paddingVertical: 14,
+  signalActive: {
+    color: AppTheme.colors.accentDark,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  signalMuted: {
+    color: AppTheme.colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  nowCard: {
+    marginTop: 28,
+    padding: 22,
+    borderRadius: 28,
+    backgroundColor: AppTheme.colors.darkSurface,
+  },
+
+  nowHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
   },
 
-  heroButtonText: {
+  nowLabel: {
+    color: "#A7F3D0",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+  },
+
+  nowTitle: {
+    marginTop: 15,
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  sectionTitle: {
-    marginTop: 30,
-    marginBottom: 14,
-    color: "#0F172A",
-    fontSize: 20,
+    fontSize: 23,
     fontWeight: "800",
+    lineHeight: 30,
   },
 
-  focusGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-
-  focusCard: {
-    width: "48%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-
-  focusIcon: {
-    fontSize: 26,
-  },
-
-  focusTitle: {
-    marginTop: 12,
-    color: "#0F172A",
-    fontSize: 16,
-    fontWeight: "800",
-  },
-
-  focusText: {
-    marginTop: 5,
-    color: "#64748B",
+  nowBody: {
+    marginTop: 9,
+    color: "#CBD5E1",
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 21,
   },
 
-  profileCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-
-  profileRow: {
+  proteinRow: {
+    marginTop: 22,
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    alignItems: "flex-end",
   },
 
-  profileLabel: {
-    color: "#64748B",
-    fontSize: 15,
-    fontWeight: "600",
+  proteinMain: {
+    color: "#FFFFFF",
+    fontSize: 29,
+    fontWeight: "800",
   },
 
-  profileValue: {
-    color: "#0F172A",
-    fontSize: 15,
+  targetBox: {
+    alignItems: "flex-end",
+  },
+
+  proteinTarget: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "800",
+  },
+
+  proteinCaption: {
+    marginTop: 2,
+    color: "#98A2B3",
+    fontSize: 11,
+  },
+
+  progressTrack: {
+    height: 8,
+    marginTop: 13,
+    borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: AppTheme.colors.darkBorder,
+  },
+
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: AppTheme.colors.accentBright,
+  },
+
+  progressInfo: {
+    marginTop: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  remaining: {
+    color: "#A7F3D0",
+    fontSize: 12,
     fontWeight: "700",
   },
 
-  aiCard: {
-    flexDirection: "row",
-    backgroundColor: "#F0FDF4",
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#BBF7D0",
+  goalAware: {
+    color: "#98A2B3",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
 
-  aiBadge: {
-    width: 46,
-    height: 46,
+  primaryButton: {
+    marginTop: 20,
+    height: 52,
     borderRadius: 16,
-    backgroundColor: "#22C55E",
+    paddingHorizontal: 18,
+    backgroundColor: AppTheme.colors.accent,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
+  quickRow: {
+    marginTop: 16,
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  quickButton: {
+    flex: 1,
+    height: 78,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: AppTheme.colors.border,
+    backgroundColor: AppTheme.colors.surface,
     justifyContent: "center",
     alignItems: "center",
   },
 
-  aiBadgeText: {
-    color: "#FFFFFF",
-    fontWeight: "800",
+  quickText: {
+    marginTop: 7,
+    color: AppTheme.colors.text,
+    fontSize: 12,
+    fontWeight: "700",
   },
 
-  aiContent: {
+  tonightCard: {
+    marginTop: 16,
+    padding: 15,
+    borderRadius: 20,
+    backgroundColor: AppTheme.colors.surfaceSoft,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  moonCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: AppTheme.colors.accentSoft,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  tonightContent: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: 12,
   },
 
-  aiTitle: {
-    color: "#14532D",
-    fontSize: 16,
+  tonightTitle: {
+    color: AppTheme.colors.ink,
+    fontSize: 14,
     fontWeight: "800",
   },
 
-  aiText: {
-    marginTop: 5,
-    color: "#3F6212",
-    fontSize: 14,
-    lineHeight: 21,
+  tonightText: {
+    marginTop: 3,
+    color: AppTheme.colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
   },
 });
