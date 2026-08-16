@@ -1,35 +1,38 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
 
-type DayKey =
-  | "Mon"
-  | "Tue"
-  | "Wed"
-  | "Thu"
-  | "Fri"
-  | "Sat"
-  | "Sun";
+import {
+  cancelPlannerReminder,
+  isValidPlannerTime,
+  PlannerDayKey,
+  scheduleWeeklyPlannerReminder,
+} from "@/services/notifications/planner-notifications";
 
 type PlanItem = {
   id: string;
   title: string;
   category: string;
+  time: string;
+  reminderEnabled: boolean;
+  notificationId: string | null;
   completed: boolean;
 };
 
-type WeeklyPlan = Record<DayKey, PlanItem[]>;
+type WeeklyPlan = Record<PlannerDayKey, PlanItem[]>;
 
 const STORAGE_KEY = "@ainutrimind_weekly_planner";
 
-const days: DayKey[] = [
+const days: PlannerDayKey[] = [
   "Mon",
   "Tue",
   "Wed",
@@ -58,16 +61,24 @@ const emptyPlan: WeeklyPlan = {
 
 export default function PlannerScreen() {
   const [selectedDay, setSelectedDay] =
-    useState<DayKey>("Mon");
+    useState<PlannerDayKey>("Mon");
 
   const [task, setTask] = useState("");
+  const [time, setTime] = useState("");
+
   const [category, setCategory] =
     useState("Personal");
+
+  const [reminderEnabled, setReminderEnabled] =
+    useState(false);
 
   const [weeklyPlan, setWeeklyPlan] =
     useState<WeeklyPlan>(emptyPlan);
 
   const [isLoaded, setIsLoaded] =
+    useState(false);
+
+  const [isAdding, setIsAdding] =
     useState(false);
 
   useEffect(() => {
@@ -86,13 +97,19 @@ export default function PlannerScreen() {
         await AsyncStorage.getItem(STORAGE_KEY);
 
       if (saved) {
-        const parsed: WeeklyPlan =
-          JSON.parse(saved);
+        const parsed = JSON.parse(saved);
 
-        setWeeklyPlan({
-          ...emptyPlan,
-          ...parsed,
-        });
+        const normalizedPlan: WeeklyPlan = {
+          Mon: normalizeItems(parsed.Mon),
+          Tue: normalizeItems(parsed.Tue),
+          Wed: normalizeItems(parsed.Wed),
+          Thu: normalizeItems(parsed.Thu),
+          Fri: normalizeItems(parsed.Fri),
+          Sat: normalizeItems(parsed.Sat),
+          Sun: normalizeItems(parsed.Sun),
+        };
+
+        setWeeklyPlan(normalizedPlan);
       }
     } catch (error) {
       console.log(
@@ -102,6 +119,28 @@ export default function PlannerScreen() {
     } finally {
       setIsLoaded(true);
     }
+  }
+
+  function normalizeItems(
+    items?: PlanItem[]
+  ): PlanItem[] {
+    if (!Array.isArray(items)) {
+      return [];
+    }
+
+    return items.map((item) => ({
+      ...item,
+      time:
+        typeof item.time === "string"
+          ? item.time
+          : "",
+      reminderEnabled:
+        item.reminderEnabled ?? false,
+      notificationId:
+        item.notificationId ?? null,
+      completed:
+        item.completed ?? false,
+    }));
   }
 
   async function savePlan(
@@ -120,56 +159,132 @@ export default function PlannerScreen() {
     }
   }
 
-  function addTask() {
+  async function addTask() {
     const cleanTask = task.trim();
+    const cleanTime = time.trim();
 
     if (!cleanTask) {
       return;
     }
 
-    const newItem: PlanItem = {
-      id: Date.now().toString(),
-      title: cleanTask,
-      category,
-      completed: false,
-    };
+    if (
+      cleanTime.length > 0 &&
+      !isValidPlannerTime(cleanTime)
+    ) {
+      Alert.alert(
+        "Invalid time",
+        "Enter time like 6:00 PM or 18:00."
+      );
+      return;
+    }
 
-    setWeeklyPlan((current) => ({
-      ...current,
-      [selectedDay]: [
-        ...current[selectedDay],
-        newItem,
-      ],
-    }));
+    if (
+      reminderEnabled &&
+      !cleanTime
+    ) {
+      Alert.alert(
+        "Time required",
+        "Add a time before enabling a reminder."
+      );
+      return;
+    }
 
-    setTask("");
+    setIsAdding(true);
+
+    try {
+      let notificationId: string | null =
+        null;
+
+      let finalReminderEnabled =
+        reminderEnabled;
+
+      if (reminderEnabled) {
+        notificationId =
+          await scheduleWeeklyPlannerReminder({
+            day: selectedDay,
+            time: cleanTime,
+            taskTitle: cleanTask,
+          });
+
+        if (!notificationId) {
+          finalReminderEnabled = false;
+
+          Alert.alert(
+            "Reminder not enabled",
+            "The task was added, but notification permission was not available."
+          );
+        }
+      }
+
+      const newItem: PlanItem = {
+        id: Date.now().toString(),
+        title: cleanTask,
+        category,
+        time: cleanTime,
+        reminderEnabled:
+          finalReminderEnabled,
+        notificationId,
+        completed: false,
+      };
+
+      setWeeklyPlan((current) => ({
+        ...current,
+        [selectedDay]: [
+          ...current[selectedDay],
+          newItem,
+        ],
+      }));
+
+      setTask("");
+      setTime("");
+      setCategory("Personal");
+      setReminderEnabled(false);
+    } catch (error) {
+      console.log(
+        "Could not add planner task:",
+        error
+      );
+
+      Alert.alert(
+        "Something went wrong",
+        "AINutriMind could not create the reminder."
+      );
+    } finally {
+      setIsAdding(false);
+    }
   }
 
   function toggleTask(id: string) {
     setWeeklyPlan((current) => ({
       ...current,
-      [selectedDay]: current[
-        selectedDay
-      ].map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              completed:
-                !item.completed,
-            }
-          : item
-      ),
+      [selectedDay]:
+        current[selectedDay].map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                completed: !item.completed,
+              }
+            : item
+        ),
     }));
   }
 
-  function deleteTask(id: string) {
+  async function deleteTask(
+    item: PlanItem
+  ) {
+    if (item.notificationId) {
+      await cancelPlannerReminder(
+        item.notificationId
+      );
+    }
+
     setWeeklyPlan((current) => ({
       ...current,
-      [selectedDay]: current[
-        selectedDay
-      ].filter(
-        (item) => item.id !== id
-      ),
+      [selectedDay]:
+        current[selectedDay].filter(
+          (currentItem) =>
+            currentItem.id !== item.id
+        ),
     }));
   }
 
@@ -181,16 +296,28 @@ export default function PlannerScreen() {
       (item) => item.completed
     ).length;
 
-  const weeklyTaskCount = useMemo(
-    () =>
-      days.reduce(
-        (total, day) =>
-          total +
-          weeklyPlan[day].length,
-        0
-      ),
-    [weeklyPlan]
-  );
+  const weeklyTaskCount =
+    useMemo(
+      () =>
+        days.reduce(
+          (total, day) =>
+            total +
+            weeklyPlan[day].length,
+          0
+        ),
+      [weeklyPlan]
+    );
+
+  const timeValid =
+    !time.trim() ||
+    isValidPlannerTime(time);
+
+  const canAdd =
+    task.trim().length > 0 &&
+    timeValid &&
+    (!reminderEnabled ||
+      time.trim().length > 0) &&
+    !isAdding;
 
   return (
     <ScrollView
@@ -210,17 +337,20 @@ export default function PlannerScreen() {
       </Text>
 
       <Text style={styles.subtitle}>
-        Organize meals, workouts,
-        work and personal tasks across
-        your entire week.
+        Organize meals, workouts, work
+        and personal tasks across your week.
       </Text>
 
       <View style={styles.weekSummary}>
-        <Text style={styles.weekSummaryTitle}>
+        <Text
+          style={styles.weekSummaryTitle}
+        >
           This week
         </Text>
 
-        <Text style={styles.weekSummaryValue}>
+        <Text
+          style={styles.weekSummaryValue}
+        >
           {weeklyTaskCount}{" "}
           {weeklyTaskCount === 1
             ? "planned item"
@@ -230,12 +360,8 @@ export default function PlannerScreen() {
 
       <ScrollView
         horizontal
-        showsHorizontalScrollIndicator={
-          false
-        }
-        contentContainerStyle={
-          styles.dayRow
-        }
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.dayRow}
       >
         {days.map((day) => {
           const selected =
@@ -291,7 +417,9 @@ export default function PlannerScreen() {
       </ScrollView>
 
       <View style={styles.addCard}>
-        <Text style={styles.selectedDayTitle}>
+        <Text
+          style={styles.selectedDayTitle}
+        >
           Add to {selectedDay}
         </Text>
 
@@ -303,11 +431,32 @@ export default function PlannerScreen() {
           style={styles.input}
           value={task}
           onChangeText={setTask}
-          placeholder="Example: Gym at 6 PM"
+          placeholder="Example: Gym"
           placeholderTextColor="#94A3B8"
-          returnKeyType="done"
-          onSubmitEditing={addTask}
         />
+
+        <Text style={styles.label}>
+          Time
+        </Text>
+
+        <TextInput
+          style={[
+            styles.input,
+            !timeValid &&
+              styles.inputError,
+          ]}
+          value={time}
+          onChangeText={setTime}
+          placeholder="Example: 6:00 PM"
+          placeholderTextColor="#94A3B8"
+          autoCapitalize="characters"
+        />
+
+        {!timeValid && (
+          <Text style={styles.errorText}>
+            Use a time like 6:00 PM or 18:00.
+          </Text>
+        )}
 
         <Text style={styles.label}>
           Category
@@ -344,29 +493,69 @@ export default function PlannerScreen() {
           })}
         </View>
 
+        <View style={styles.reminderRow}>
+          <View
+            style={styles.reminderContent}
+          >
+            <Text
+              style={styles.reminderTitle}
+            >
+              Weekly reminder
+            </Text>
+
+            <Text
+              style={styles.reminderText}
+            >
+              Notify me every {selectedDay}
+              {" "}at this time.
+            </Text>
+          </View>
+
+          <Switch
+            value={reminderEnabled}
+            onValueChange={
+              setReminderEnabled
+            }
+            disabled={
+              !time.trim() ||
+              !timeValid
+            }
+          />
+        </View>
+
         <Pressable
           style={[
             styles.addButton,
-            !task.trim() &&
+            !canAdd &&
               styles.addButtonDisabled,
           ]}
-          disabled={!task.trim()}
+          disabled={!canAdd}
           onPress={addTask}
         >
-          <Text style={styles.addButtonText}>
-            + Add to {selectedDay}
+          <Text
+            style={styles.addButtonText}
+          >
+            {isAdding
+              ? "Adding..."
+              : `+ Add to ${selectedDay}`}
           </Text>
         </Pressable>
       </View>
 
-      <View style={styles.sectionHeader}>
+      <View
+        style={styles.sectionHeader}
+      >
         <View>
-          <Text style={styles.sectionTitle}>
+          <Text
+            style={styles.sectionTitle}
+          >
             {selectedDay}
           </Text>
 
           {selectedItems.length > 0 && (
-            <Text style={styles.progressText}>
+            <Text
+              style={styles.progressText}
+            >
               {completedCount} of{" "}
               {selectedItems.length} completed
             </Text>
@@ -383,90 +572,119 @@ export default function PlannerScreen() {
 
       {!isLoaded ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>
+          <Text
+            style={styles.emptyTitle}
+          >
             Loading your week...
           </Text>
         </View>
       ) : selectedItems.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyIcon}>
+          <Text
+            style={styles.emptyIcon}
+          >
             📅
           </Text>
 
-          <Text style={styles.emptyTitle}>
+          <Text
+            style={styles.emptyTitle}
+          >
             Nothing planned for{" "}
             {selectedDay}
           </Text>
 
-          <Text style={styles.emptyText}>
-            Add tasks above. Later,
-            AINutriMind will generate
-            suggestions based on your
-            routine and goals.
+          <Text
+            style={styles.emptyText}
+          >
+            Add your first item for this day.
           </Text>
         </View>
       ) : (
         <View style={styles.taskList}>
-          {selectedItems.map((item) => (
-            <View
-              key={item.id}
-              style={[
-                styles.taskCard,
-                item.completed &&
-                  styles.taskCardCompleted,
-              ]}
-            >
-              <Pressable
-                style={[
-                  styles.checkButton,
-                  item.completed &&
-                    styles.checkButtonCompleted,
-                ]}
-                onPress={() =>
-                  toggleTask(item.id)
-                }
-              >
-                <Text style={styles.checkText}>
-                  {item.completed
-                    ? "✓"
-                    : ""}
-                </Text>
-              </Pressable>
-
+          {selectedItems.map(
+            (item) => (
               <View
-                style={styles.taskContent}
+                key={item.id}
+                style={[
+                  styles.taskCard,
+                  item.completed &&
+                    styles.taskCardCompleted,
+                ]}
               >
-                <Text
+                <Pressable
                   style={[
-                    styles.taskTitle,
+                    styles.checkButton,
                     item.completed &&
-                      styles.taskTitleCompleted,
+                      styles.checkButtonCompleted,
                   ]}
+                  onPress={() =>
+                    toggleTask(item.id)
+                  }
                 >
-                  {item.title}
-                </Text>
+                  <Text
+                    style={styles.checkText}
+                  >
+                    {item.completed
+                      ? "✓"
+                      : ""}
+                  </Text>
+                </Pressable>
 
-                <Text
-                  style={styles.taskCategory}
+                <View
+                  style={styles.taskContent}
                 >
-                  {item.category}
-                </Text>
+                  <Text
+                    style={[
+                      styles.taskTitle,
+                      item.completed &&
+                        styles.taskTitleCompleted,
+                    ]}
+                  >
+                    {item.title}
+                  </Text>
+
+                  <View
+                    style={styles.metaRow}
+                  >
+                    <Text
+                      style={styles.taskCategory}
+                    >
+                      {item.category}
+                    </Text>
+
+                    {item.time && (
+                      <Text
+                        style={styles.taskTime}
+                      >
+                        {item.time}
+                      </Text>
+                    )}
+                  </View>
+
+                  {item.reminderEnabled && (
+                    <Text
+                      style={styles.reminderBadge}
+                    >
+                      🔔 Weekly reminder active
+                    </Text>
+                  )}
+                </View>
+
+                <Pressable
+                  style={styles.deleteButton}
+                  onPress={() =>
+                    deleteTask(item)
+                  }
+                >
+                  <Text
+                    style={styles.deleteText}
+                  >
+                    Delete
+                  </Text>
+                </Pressable>
               </View>
-
-              <Pressable
-                style={styles.deleteButton}
-                onPress={() =>
-                  deleteTask(item.id)
-                }
-              >
-                <Text
-                  style={styles.deleteText}
-                >
-                  Delete
-                </Text>
-              </Pressable>
-            </View>
-          ))}
+            )
+          )}
         </View>
       )}
     </ScrollView>
@@ -615,6 +833,17 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
+  inputError: {
+    borderColor: "#EF4444",
+    marginBottom: 7,
+  },
+
+  errorText: {
+    color: "#EF4444",
+    fontSize: 12,
+    marginBottom: 18,
+  },
+
   categories: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -642,6 +871,33 @@ const styles = StyleSheet.create({
 
   categoryTextSelected: {
     color: "#15803D",
+  },
+
+  reminderRow: {
+    marginTop: 22,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 16,
+    padding: 15,
+  },
+
+  reminderContent: {
+    flex: 1,
+    paddingRight: 16,
+  },
+
+  reminderTitle: {
+    color: "#0F172A",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
+  reminderText: {
+    marginTop: 4,
+    color: "#64748B",
+    fontSize: 13,
   },
 
   addButton: {
@@ -770,15 +1026,33 @@ const styles = StyleSheet.create({
 
   taskTitleCompleted: {
     color: "#94A3B8",
-    textDecorationLine:
-      "line-through",
+    textDecorationLine: "line-through",
+  },
+
+  metaRow: {
+    marginTop: 6,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
   },
 
   taskCategory: {
-    marginTop: 5,
     color: "#64748B",
     fontSize: 13,
     fontWeight: "600",
+  },
+
+  taskTime: {
+    color: "#16A34A",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  reminderBadge: {
+    marginTop: 7,
+    color: "#15803D",
+    fontSize: 12,
+    fontWeight: "700",
   },
 
   deleteButton: {
