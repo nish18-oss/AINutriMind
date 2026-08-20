@@ -1,11 +1,12 @@
-import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Tabs } from "expo-router";
 
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+
         tabBarActiveTintColor: "#16A34A",
         tabBarInactiveTintColor: "#94A3B8",
 
@@ -27,6 +28,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Home",
+
           tabBarIcon: ({ color, size }) => (
             <Ionicons
               name="home-outline"
@@ -41,6 +43,7 @@ export default function TabsLayout() {
         name="planner"
         options={{
           title: "Planner",
+
           tabBarIcon: ({ color, size }) => (
             <Ionicons
               name="calendar-outline"
@@ -55,6 +58,7 @@ export default function TabsLayout() {
         name="coach"
         options={{
           title: "AI Coach",
+
           tabBarIcon: ({ color, size }) => (
             <Ionicons
               name="sparkles-outline"
@@ -69,6 +73,7 @@ export default function TabsLayout() {
         name="progress"
         options={{
           title: "Progress",
+
           tabBarIcon: ({ color, size }) => (
             <Ionicons
               name="stats-chart-outline"
@@ -83,6 +88,7 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: "Profile",
+
           tabBarIcon: ({ color, size }) => (
             <Ionicons
               name="person-outline"
@@ -90,6 +96,13 @@ export default function TabsLayout() {
               color={color}
             />
           ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="nutrition"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import {
   Pressable,
@@ -7,10 +8,18 @@ import {
   View,
 } from "react-native";
 
+import { AppTheme } from "@/constants/theme";
+import { calculateNutritionTargets } from "@/lib/nutrition-targets";
 import { useOnboarding } from "@/lib/onboarding-context";
 
 export default function ProfileScreen() {
   const { data } = useOnboarding();
+
+  const targets = calculateNutritionTargets({
+    goal: data.goal,
+    weight: data.weight,
+    activityLevel: data.activityLevel,
+  });
 
   return (
     <ScrollView
@@ -18,31 +27,107 @@ export default function ProfileScreen() {
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.eyebrow}>
-        PROFILE
-      </Text>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.eyebrow}>
+            PROFILE
+          </Text>
 
-      <Text style={styles.title}>
-        Your health profile
-      </Text>
+          <Text style={styles.title}>
+            Your health profile
+          </Text>
+        </View>
+
+        <View style={styles.profileIcon}>
+          <Ionicons
+            name="person-outline"
+            size={22}
+            color={AppTheme.colors.accentDark}
+          />
+        </View>
+      </View>
 
       <Text style={styles.subtitle}>
-        Review and update the information AINutriMind uses
-        to personalize your plan.
+        AINutriMind uses this information to personalize
+        your nutrition targets and daily guidance.
+      </Text>
+
+      <View style={styles.targetCard}>
+        <View style={styles.targetHeader}>
+          <View>
+            <Text style={styles.targetEyebrow}>
+              CURRENT TARGETS
+            </Text>
+
+            <Text style={styles.targetTitle}>
+              Your daily baseline
+            </Text>
+          </View>
+
+          <Ionicons
+            name="sparkles-outline"
+            size={20}
+            color="#A7F3D0"
+          />
+        </View>
+
+        <View style={styles.targetNumbers}>
+          <View style={styles.targetColumn}>
+            <Text style={styles.targetLabel}>
+              Calories
+            </Text>
+
+            <Text style={styles.targetValue}>
+              {targets.calories}
+            </Text>
+
+            <Text style={styles.targetUnit}>
+              kcal / day
+            </Text>
+          </View>
+
+          <View style={styles.targetDivider} />
+
+          <View style={styles.targetColumn}>
+            <Text style={styles.targetLabel}>
+              Protein
+            </Text>
+
+            <Text style={styles.targetValue}>
+              {targets.protein}g
+            </Text>
+
+            <Text style={styles.targetUnit}>
+              per day
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.targetNote}>
+          These are wellness estimates based on your
+          current weight, activity and goal.
+        </Text>
+      </View>
+
+      <Text style={styles.sectionTitle}>
+        Personal details
       </Text>
 
       <View style={styles.card}>
         <ProfileRow
+          icon="flag-outline"
           label="Goal"
           value={data.goal ?? "Not set"}
         />
 
         <ProfileRow
+          icon="calendar-outline"
           label="Age"
           value={data.age || "Not set"}
         />
 
         <ProfileRow
+          icon="resize-outline"
           label="Height"
           value={
             data.height
@@ -52,6 +137,7 @@ export default function ProfileScreen() {
         />
 
         <ProfileRow
+          icon="fitness-outline"
           label="Weight"
           value={
             data.weight
@@ -61,6 +147,7 @@ export default function ProfileScreen() {
         />
 
         <ProfileRow
+          icon="walk-outline"
           label="Activity"
           value={
             data.activityLevel ??
@@ -69,46 +156,53 @@ export default function ProfileScreen() {
         />
 
         <ProfileRow
+          icon="restaurant-outline"
           label="Diet"
           value={
             data.dietPreference ??
             "Not set"
           }
+          showBorder={false}
         />
       </View>
 
       <Text style={styles.sectionTitle}>
-        Edit your information
+        Routine
       </Text>
 
-      <Pressable
-        style={styles.actionCard}
-        onPress={() =>
-          router.push(
-            "/onboarding/routine"
-          )
-        }
-      >
-        <View style={styles.actionIcon}>
-          <Text style={styles.actionEmoji}>
-            ⏰
-          </Text>
-        </View>
+      <View style={styles.card}>
+        <ProfileRow
+          icon="sunny-outline"
+          label="Wake time"
+          value={
+            data.wakeTime ||
+            "Not set"
+          }
+        />
 
-        <View style={styles.actionContent}>
-          <Text style={styles.actionTitle}>
-            Daily Routine
-          </Text>
+        <ProfileRow
+          icon="moon-outline"
+          label="Sleep time"
+          value={
+            data.sleepTime ||
+            "Not set"
+          }
+        />
 
-          <Text style={styles.actionText}>
-            Update wake time, sleep time and your daily schedule.
-          </Text>
-        </View>
+        <ProfileRow
+          icon="time-outline"
+          label="Schedule"
+          value={
+            data.schedule ||
+            "Not set"
+          }
+          showBorder={false}
+        />
+      </View>
 
-        <Text style={styles.chevron}>
-          ›
-        </Text>
-      </Pressable>
+      <Text style={styles.sectionTitle}>
+        Edit information
+      </Text>
 
       <Pressable
         style={styles.actionCard}
@@ -119,41 +213,100 @@ export default function ProfileScreen() {
         }
       >
         <View style={styles.actionIcon}>
-          <Text style={styles.actionEmoji}>
-            ❤️
-          </Text>
+          <Ionicons
+            name="heart-outline"
+            size={21}
+            color={AppTheme.colors.accentDark}
+          />
         </View>
 
         <View style={styles.actionContent}>
           <Text style={styles.actionTitle}>
-            Health Profile
+            Health profile
           </Text>
 
           <Text style={styles.actionText}>
-            Update age, height, weight, activity and diet.
+            Update age, height, weight, activity and
+            diet preference.
           </Text>
         </View>
 
-        <Text style={styles.chevron}>
-          ›
-        </Text>
+        <Ionicons
+          name="chevron-forward"
+          size={19}
+          color={AppTheme.colors.textMuted}
+        />
+      </Pressable>
+
+      <Pressable
+        style={styles.actionCard}
+        onPress={() =>
+          router.push(
+            "/onboarding/routine"
+          )
+        }
+      >
+        <View style={styles.actionIcon}>
+          <Ionicons
+            name="time-outline"
+            size={21}
+            color={AppTheme.colors.accentDark}
+          />
+        </View>
+
+        <View style={styles.actionContent}>
+          <Text style={styles.actionTitle}>
+            Daily routine
+          </Text>
+
+          <Text style={styles.actionText}>
+            Update wake time, sleep time and your
+            daily schedule.
+          </Text>
+        </View>
+
+        <Ionicons
+          name="chevron-forward"
+          size={19}
+          color={AppTheme.colors.textMuted}
+        />
       </Pressable>
     </ScrollView>
   );
 }
 
 function ProfileRow({
+  icon,
   label,
   value,
+  showBorder = true,
 }: {
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
+  showBorder?: boolean;
 }) {
   return (
-    <View style={styles.profileRow}>
-      <Text style={styles.profileLabel}>
-        {label}
-      </Text>
+    <View
+      style={[
+        styles.profileRow,
+        !showBorder &&
+          styles.profileRowLast,
+      ]}
+    >
+      <View style={styles.rowLeft}>
+        <View style={styles.rowIcon}>
+          <Ionicons
+            name={icon}
+            size={17}
+            color={AppTheme.colors.accentDark}
+          />
+        </View>
+
+        <Text style={styles.profileLabel}>
+          {label}
+        </Text>
+      </View>
 
       <Text style={styles.profileValue}>
         {value}
@@ -165,121 +318,236 @@ function ProfileRow({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor:
+      AppTheme.colors.background,
   },
 
   container: {
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 56,
     paddingBottom: 120,
   },
 
+  header: {
+    flexDirection: "row",
+    justifyContent:
+      "space-between",
+    alignItems: "center",
+  },
+
   eyebrow: {
-    color: "#16A34A",
-    fontSize: 13,
+    color:
+      AppTheme.colors.accentDark,
+    fontSize: 10,
     fontWeight: "800",
-    letterSpacing: 1,
+    letterSpacing: 1.3,
   },
 
   title: {
-    marginTop: 8,
-    color: "#0F172A",
-    fontSize: 34,
+    marginTop: 4,
+    color: AppTheme.colors.ink,
+    fontSize: 30,
     fontWeight: "800",
+  },
+
+  profileIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor:
+      AppTheme.colors.accentSoft,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   subtitle: {
     marginTop: 10,
-    color: "#64748B",
-    fontSize: 16,
-    lineHeight: 24,
+    color:
+      AppTheme.colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 21,
   },
 
-  card: {
-    marginTop: 28,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 22,
-    paddingHorizontal: 18,
+  targetCard: {
+    marginTop: 24,
+    padding: 20,
+    borderRadius: 24,
+    backgroundColor:
+      AppTheme.colors.darkSurface,
   },
 
-  profileRow: {
+  targetHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    justifyContent:
+      "space-between",
+    alignItems: "center",
   },
 
-  profileLabel: {
-    color: "#64748B",
-    fontSize: 15,
-    fontWeight: "600",
+  targetEyebrow: {
+    color: "#A7F3D0",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1.2,
   },
 
-  profileValue: {
-    color: "#0F172A",
-    fontSize: 15,
-    fontWeight: "700",
-    maxWidth: "58%",
-    textAlign: "right",
-  },
-
-  sectionTitle: {
-    marginTop: 30,
-    marginBottom: 14,
-    color: "#0F172A",
-    fontSize: 20,
+  targetTitle: {
+    marginTop: 4,
+    color: "#FFFFFF",
+    fontSize: 18,
     fontWeight: "800",
   },
 
-  actionCard: {
+  targetNumbers: {
+    marginTop: 22,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  targetColumn: {
+    flex: 1,
+  },
+
+  targetLabel: {
+    color: "#98A2B3",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+
+  targetValue: {
+    marginTop: 4,
+    color: "#FFFFFF",
+    fontSize: 25,
+    fontWeight: "800",
+  },
+
+  targetUnit: {
+    marginTop: 2,
+    color: "#A7F3D0",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+
+  targetDivider: {
+    width: 1,
+    height: 48,
+    marginHorizontal: 20,
+    backgroundColor:
+      AppTheme.colors.darkBorder,
+  },
+
+  targetNote: {
+    marginTop: 18,
+    color: "#98A2B3",
+    fontSize: 11,
+    lineHeight: 17,
+  },
+
+  sectionTitle: {
+    marginTop: 28,
     marginBottom: 12,
-    backgroundColor: "#FFFFFF",
+    color: AppTheme.colors.ink,
+    fontSize: 18,
+    fontWeight: "800",
+  },
+
+  card: {
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor:
+      AppTheme.colors.border,
+    backgroundColor:
+      AppTheme.colors.surface,
+    paddingHorizontal: 16,
+  },
+
+  profileRow: {
+    minHeight: 64,
+    borderBottomWidth: 1,
+    borderBottomColor:
+      AppTheme.colors.border,
+    flexDirection: "row",
+    justifyContent:
+      "space-between",
+    alignItems: "center",
+  },
+
+  profileRowLast: {
+    borderBottomWidth: 0,
+  },
+
+  rowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  rowIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor:
+      AppTheme.colors.accentSoft,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+
+  profileLabel: {
+    color:
+      AppTheme.colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  profileValue: {
+    maxWidth: "48%",
+    color: AppTheme.colors.ink,
+    fontSize: 13,
+    fontWeight: "800",
+    textAlign: "right",
+  },
+
+  actionCard: {
+    marginBottom: 10,
+    padding: 15,
     borderRadius: 20,
-    padding: 16,
+    borderWidth: 1,
+    borderColor:
+      AppTheme.colors.border,
+    backgroundColor:
+      AppTheme.colors.surface,
     flexDirection: "row",
     alignItems: "center",
   },
 
   actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: "#F0FDF4",
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor:
+      AppTheme.colors.accentSoft,
     justifyContent: "center",
     alignItems: "center",
   },
 
-  actionEmoji: {
-    fontSize: 22,
-  },
-
   actionContent: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: 12,
+    marginRight: 8,
   },
 
   actionTitle: {
-    color: "#0F172A",
-    fontSize: 16,
+    color: AppTheme.colors.ink,
+    fontSize: 14,
     fontWeight: "800",
   },
 
   actionText: {
-    marginTop: 4,
-    color: "#64748B",
-    fontSize: 13,
-    lineHeight: 19,
-  },
-
-  chevron: {
-    marginLeft: 12,
-    color: "#94A3B8",
-    fontSize: 28,
-    fontWeight: "400",
+    marginTop: 3,
+    color:
+      AppTheme.colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 17,
   },
 });

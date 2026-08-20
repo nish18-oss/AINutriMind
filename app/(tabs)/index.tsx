@@ -1,5 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
+import {
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import {
   Pressable,
   ScrollView,
@@ -9,24 +15,77 @@ import {
 } from "react-native";
 
 import { AppTheme } from "@/constants/theme";
+import {
+  calculateNutritionTotals,
+  getNutritionEntries,
+  getTodayNutritionEntries,
+} from "@/lib/nutrition-storage";
+import {
+  calculateNutritionTargets,
+} from "@/lib/nutrition-targets";
 import { useOnboarding } from "@/lib/onboarding-context";
 
 export default function HomeScreen() {
   const { data } = useOnboarding();
 
-  const proteinTarget =
-    data.goal === "Build Muscle" ? 130 : 100;
+  const [proteinConsumed, setProteinConsumed] =
+    useState(0);
 
-  const proteinConsumed = 88;
+  const [caloriesConsumed, setCaloriesConsumed] =
+    useState(0);
+
+  const targets = useMemo(
+    () =>
+      calculateNutritionTargets({
+        goal: data.goal,
+        weight: data.weight,
+        activityLevel: data.activityLevel,
+      }),
+    [
+      data.goal,
+      data.weight,
+      data.activityLevel,
+    ]
+  );
 
   const proteinRemaining = Math.max(
-    proteinTarget - proteinConsumed,
+    targets.protein - proteinConsumed,
+    0
+  );
+
+  const calorieRemaining = Math.max(
+    targets.calories - caloriesConsumed,
     0
   );
 
   const proteinProgress = Math.min(
-    (proteinConsumed / proteinTarget) * 100,
+    targets.protein > 0
+      ? (proteinConsumed / targets.protein) * 100
+      : 0,
     100
+  );
+
+  const proteinComplete =
+    proteinConsumed >= targets.protein;
+
+  const loadNutrition = useCallback(async () => {
+    const entries =
+      await getNutritionEntries();
+
+    const todayEntries =
+      getTodayNutritionEntries(entries);
+
+    const totals =
+      calculateNutritionTotals(todayEntries);
+
+    setProteinConsumed(totals.protein);
+    setCaloriesConsumed(totals.calories);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadNutrition();
+    }, [loadNutrition])
   );
 
   return (
@@ -61,13 +120,13 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.date}>
-        SUNDAY · AUGUST 16
+        TODAY
       </Text>
 
       <View style={styles.balanceSection}>
         <View style={styles.balanceRing}>
           <Text style={styles.balanceNumber}>
-            72
+            {proteinComplete ? "✓" : "72"}
           </Text>
 
           <Text style={styles.balanceLabel}>
@@ -75,7 +134,9 @@ export default function HomeScreen() {
           </Text>
 
           <Text style={styles.balanceStatus}>
-            On track
+            {proteinComplete
+              ? "Protein complete"
+              : "On track"}
           </Text>
         </View>
 
@@ -108,12 +169,19 @@ export default function HomeScreen() {
         </View>
 
         <Text style={styles.nowTitle}>
-          Protein needs attention
+          {proteinComplete
+            ? "Protein target complete"
+            : proteinConsumed === 0
+            ? "Start today’s nutrition"
+            : "Protein needs attention"}
         </Text>
 
         <Text style={styles.nowBody}>
-          You are slightly behind today&apos;s pace.
-          Closing the gap now can make your evening easier.
+          {proteinComplete
+            ? "You have reached today’s protein target. Keep the rest of your meals balanced."
+            : proteinConsumed === 0
+            ? "Log your first meal so AINutriMind can track your protein progress throughout the day."
+            : "You are still below today’s protein target. A protein-rich next meal can help close the gap."}
         </Text>
 
         <View style={styles.proteinRow}>
@@ -129,7 +197,7 @@ export default function HomeScreen() {
 
           <View style={styles.targetBox}>
             <Text style={styles.proteinTarget}>
-              {proteinTarget}g
+              {targets.protein}g
             </Text>
 
             <Text style={styles.proteinCaption}>
@@ -151,7 +219,9 @@ export default function HomeScreen() {
 
         <View style={styles.progressInfo}>
           <Text style={styles.remaining}>
-            {proteinRemaining}g remaining today
+            {proteinComplete
+              ? "Target completed"
+              : `${proteinRemaining}g remaining today`}
           </Text>
 
           <Text style={styles.goalAware}>
@@ -159,14 +229,34 @@ export default function HomeScreen() {
           </Text>
         </View>
 
+        <View style={styles.calorieStrip}>
+          <View>
+            <Text style={styles.calorieLabel}>
+              Calories
+            </Text>
+
+            <Text style={styles.calorieValue}>
+              {caloriesConsumed} / {targets.calories}
+            </Text>
+          </View>
+
+          <Text style={styles.calorieRemaining}>
+            {calorieRemaining} left
+          </Text>
+        </View>
+
         <Pressable
           style={styles.primaryButton}
           onPress={() =>
-            router.push("/coach" as any)
+            router.push("/nutrition" as any)
           }
         >
           <Text style={styles.primaryButtonText}>
-            Fix my next meal
+            {proteinComplete
+              ? "View nutrition"
+              : proteinConsumed === 0
+              ? "Log my first meal"
+              : "Add protein"}
           </Text>
 
           <Ionicons
@@ -178,7 +268,12 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.quickRow}>
-        <Pressable style={styles.quickButton}>
+        <Pressable
+          style={styles.quickButton}
+          onPress={() =>
+            router.push("/nutrition" as any)
+          }
+        >
           <Ionicons
             name="restaurant-outline"
             size={21}
@@ -240,8 +335,8 @@ export default function HomeScreen() {
           </Text>
 
           <Text style={styles.tonightText}>
-            Your end-of-day check-in will appear before
-            your usual sleep time.
+            Your end-of-day check-in will use today’s
+            nutrition progress before your usual sleep time.
           </Text>
         </View>
       </View>
@@ -449,6 +544,35 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "800",
     letterSpacing: 0.5,
+  },
+
+  calorieStrip: {
+    marginTop: 18,
+    padding: 13,
+    borderRadius: 16,
+    backgroundColor: AppTheme.colors.darkSurfaceSoft,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  calorieLabel: {
+    color: "#98A2B3",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+
+  calorieValue: {
+    marginTop: 3,
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  calorieRemaining: {
+    color: "#A7F3D0",
+    fontSize: 11,
+    fontWeight: "700",
   },
 
   primaryButton: {
